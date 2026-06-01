@@ -2142,7 +2142,7 @@ function renderResults() {
     ${m.topCx!=null?`<div class="rv"><span class="k">상단 중심</span><span class="v v--neg">(${Math.round(m.topCx)}, ${Math.round(m.topCy)})</span></div>`:''}
     ${m.botCx!=null?`<div class="rv"><span class="k">하단 중심</span><span class="v v--pos">(${Math.round(m.botCx)}, ${Math.round(m.botCy)})</span></div>`:''}
     <div class="rv"><span class="k">픽셀수</span><span class="v">${m.pixelCount.toLocaleString()}</span></div>
-  </div>\`;
+  </div>`;
   ['낱글자','첫닿자','받침닿자'].forEach(lbl=>{const e=m.comps[lbl];if(!e)return;html+=`<div class="rc"><h3>${lbl}</h3>${pRow(e,m.isSero)}</div>`;});
   if (Object.keys(m.hols).length) {
     html += `<div class="rc" style="grid-column:span 2"><h3>홀자 세부</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px">`;
