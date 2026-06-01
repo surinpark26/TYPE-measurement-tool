@@ -294,18 +294,35 @@ function filteredRows(){
   let rows=curRows();
   const m=document.getElementById('filterMoim').value;
   const b=document.getElementById('filterBatch').value;
-  if(m) rows=rows.filter(r=>r['모임꼴']===m);
+  // 실제 컬럼명 감지
+  const keys=Object.keys(rows[0]||{});
+  const moimKey=keys.find(k=>k==='모임꼴')||'모임꼴';
+  const batKey=keys.find(k=>k==='받침여부')||'받침여부';
+  const propKey=keys.find(k=>k==='비례값')||'비례값';
+  const charKey=keys.find(k=>k==='글자')||'글자';
+  const wKey=keys.find(k=>k==='낱글자너비(mm)'||k==='너비(mm)')||'너비(mm)';
+  const hKey=keys.find(k=>k==='낱글자높이(mm)'||k==='높이(mm)')||'높이(mm)';
+  const dxKey=keys.find(k=>k.includes('편차X'))||'편차X(Gu)';
+  const dyKey=keys.find(k=>k.includes('편차Y'))||'편차Y(Gu)';
+  const balKey=keys.find(k=>k.includes('균형축'))||'균형축각도(°)';
+
+  if(m) rows=rows.filter(r=>r[moimKey]===m);
   if(b) rows=rows.filter(r=>{
-    const v=r['받침여부']||'';
+    const v=r[batKey]||'';
     if(b==='민글자') return v==='민글자'||v==='';
     if(b==='받침') return v==='받침'||v==='받침글자';
     return true;
   });
   const s=document.getElementById('sortCol').value;
-  if(s) rows=[...rows].sort((a,b2)=>{
-    const av=parseFloat(a[s]),bv=parseFloat(b2[s]);
+  const keyMap={'글자':charKey,'너비':wKey,'높이':hKey,'비례값':propKey,
+    '균형점X(Gu)':keys.find(k=>k.includes('균형점X'))||'균형점X(Gu)',
+    '균형점Y(Gu)':keys.find(k=>k.includes('균형점Y'))||'균형점Y(Gu)',
+    '편차X(Gu)':dxKey,'편차Y(Gu)':dyKey};
+  const sk=keyMap[s]||s;
+  if(sk) rows=[...rows].sort((a,b2)=>{
+    const av=parseFloat(a[sk]),bv=parseFloat(b2[sk]);
     if(!isNaN(av)&&!isNaN(bv)) return av-bv;
-    return String(a[s]||'').localeCompare(String(b2[s]||''));
+    return String(a[sk]||'').localeCompare(String(b2[sk]||''));
   });
   return rows;
 }
@@ -543,32 +560,63 @@ function renderContent(){
 }
 
 function renderTable(rows,body){
-  const numCols=['너비(mm)','높이(mm)','비례값','균형점X(Gu)','균형점Y(Gu)','편차X(Gu)','편차Y(Gu)','균형축각도(°)'];
-  const showCols=['글자','모임꼴','받침여부','너비(mm)','높이(mm)','비례값','균형점X(Gu)','균형점Y(Gu)','편차X(Gu)','편차Y(Gu)','균형축각도(°)'];
-  const cols=showCols.filter(c=>rows[0]&&c in rows[0]);
+  if(!rows.length) return;
+  // 실제 파일 헤더를 그대로 사용 (하드코딩 X)
+  const allCols = Object.keys(rows[0]);
+  // 숫자형 컬럼 자동 감지
+  const numCols = allCols.filter(c => {
+    const sample = rows.find(r => r[c] !== '' && r[c] !== undefined);
+    return sample && !isNaN(parseFloat(sample[c]));
+  });
+  // 주요 컬럼 앞에 배치, 나머지는 뒤에
+  const priority = ['파일명','글자','모임꼴','받침여부','낱글자너비(mm)','낱글자높이(mm)','비례기준','비례값',
+    '균형점X(Gu)','균형점Y(Gu)','편차X(Gu)','편차Y(Gu)','균형축각도(°)','픽셀수',
+    // 구버전 헤더도 대응
+    '너비(mm)','높이(mm)'];
+  const cols = [
+    ...priority.filter(c => allCols.includes(c)),
+    ...allCols.filter(c => !priority.includes(c) && c !== '측정시각' && c !== '파일명'),
+    ...allCols.filter(c => c === '측정시각')
+  ];
+  // 파일명은 너무 길어서 끝에
+  const finalCols = ['글자', ...cols.filter(c => c !== '글자')];
+  const dispCols = [...new Set(finalCols)].filter(c => allCols.includes(c));
+
   body.innerHTML=`<div style="overflow-x:auto;"><table class="data-table">
-    <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map(r=>`<tr>${cols.map(c=>{
-      const v=r[c]||'';
+    <thead><tr>${dispCols.map(c=>`<th style="white-space:nowrap">${c}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${dispCols.map(c=>{
+      const v=r[c]??'';
       if(c==='글자') return `<td class="char">${v}</td>`;
       if(numCols.includes(c)){
         const n=parseFloat(v);
-        const col=!isNaN(n)&&(c==='편차X(Gu)'||c==='편차Y(Gu)')?(n>0?'color:var(--err)':n<0?'color:var(--accent)':''):'';
+        const isDevX = c==='편차X(Gu)' || c.includes('편차X');
+        const isDevY = c==='편차Y(Gu)' || c.includes('편차Y');
+        const col=!isNaN(n)&&(isDevX||isDevY)?(n>0?'color:var(--err)':n<0?'color:var(--accent)':''):'';
         return `<td class="num" style="${col}">${v}</td>`;
       }
+      if(c==='파일명') return `<td style="font-size:10px;color:var(--text-3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${v}">${v}</td>`;
       return `<td>${v}</td>`;
     }).join('')}</tr>`).join('')}</tbody>
   </table></div>`;
 }
 
+function _col(row, ...candidates) {
+  for (const c of candidates) if (c in row) return row[c] ?? '';
+  return '';
+}
+
 function renderChart(rows,body){
-  // 비례값 막대 차트
-  const sorted=[...rows].filter(r=>r['비례값']&&r['글자']).sort((a,b)=>parseFloat(a['비례값'])-parseFloat(b['비례값']));
-  const maxV=Math.max(...sorted.map(r=>parseFloat(r['비례값'])||0));
+  // 비례값 컬럼명 자동 감지 (구버전/신버전 모두 대응)
+  const propKey = rows[0] && '비례값' in rows[0] ? '비례값' : Object.keys(rows[0]||{}).find(k=>k.includes('비례값'))||'비례값';
+  const charKey = rows[0] && '글자' in rows[0] ? '글자' : '글자';
+  const moimKey = rows[0] && '모임꼴' in rows[0] ? '모임꼴' : '모임꼴';
+  const batKey  = rows[0] && '받침여부' in rows[0] ? '받침여부' : '받침여부';
+
+  const sorted=[...rows].filter(r=>r[propKey]&&r[charKey]).sort((a,b)=>parseFloat(a[propKey])-parseFloat(b[propKey]));
+  const maxV=Math.max(...sorted.map(r=>parseFloat(r[propKey])||0));
   const colors={'가로모임꼴':'#2563eb','세로모임꼴':'#16a34a','섞임모임꼴':'#d97706'};
 
-  // 통계
-  const vals=rows.map(r=>parseFloat(r['비례값'])).filter(v=>!isNaN(v));
+  const vals=rows.map(r=>parseFloat(r[propKey])).filter(v=>!isNaN(v));
   const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
   const mn=vals.length?Math.min(...vals):0,mx=vals.length?Math.max(...vals):0;
 
@@ -582,12 +630,12 @@ function renderChart(rows,body){
   <div class="chart-wrap">
     <h3>비례값 (1:N) — 글자별</h3>
     <div class="bar-chart">${sorted.slice(0,60).map(r=>{
-      const v=parseFloat(r['비례값'])||0;
+      const v=parseFloat(r[propKey])||0;
       const pct=maxV>0?v/maxV*100:0;
-      const col=colors[r['모임꼴']]||'#888';
+      const col=colors[r[moimKey]]||'#888';
       return `<div class="bar-row">
-        <span class="bar-row__label">${r['글자']}</span>
-        <span class="bar-row__name">${r['모임꼴']||''}${r['받침여부']==='받침'?' 받침':''}</span>
+        <span class="bar-row__label">${r[charKey]}</span>
+        <span class="bar-row__name">${r[moimKey]||''}${r[batKey]==='받침'?' 받침':''}</span>
         <div class="bar-row__track"><div class="bar-row__fill" style="width:${pct}%;background:${col}"></div></div>
         <span class="bar-row__val">${v.toFixed(3)}</span>
       </div>`;
@@ -596,9 +644,15 @@ function renderChart(rows,body){
 }
 
 function renderBalance(rows,body){
-  // 균형점 산점도 (SVG)
-  const pts=rows.filter(r=>r['편차X(Gu)']!==undefined&&r['편차Y(Gu)']!==undefined)
-    .map(r=>({ch:r['글자'],x:parseFloat(r['편차X(Gu)']),y:parseFloat(r['편차Y(Gu)']),m:r['모임꼴'],bat:r['받침여부']}))
+  // 컬럼명 자동 감지
+  const keys = Object.keys(rows[0]||{});
+  const dxKey = keys.find(k=>k.includes('편차X'))||'편차X(Gu)';
+  const dyKey = keys.find(k=>k.includes('편차Y'))||'편차Y(Gu)';
+  const moimKey = keys.find(k=>k==='모임꼴')||'모임꼴';
+  const charKey = keys.find(k=>k==='글자')||'글자';
+
+  const pts=rows.filter(r=>r[dxKey]!==undefined&&r[dyKey]!==undefined)
+    .map(r=>({ch:r[charKey],x:parseFloat(r[dxKey]),y:parseFloat(r[dyKey]),m:r[moimKey]}))
     .filter(p=>!isNaN(p.x)&&!isNaN(p.y));
   const colors={'가로모임꼴':'#2563eb','세로모임꼴':'#16a34a','섞임모임꼴':'#d97706'};
   const SZ=400,PAD=40,RANGE=20;
