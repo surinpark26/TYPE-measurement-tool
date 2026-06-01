@@ -1436,20 +1436,29 @@ function loadAndOptimize(dataURL, cb) {
 
 function addFiles(files) {
   const fresh = [...files].filter(f => f.type.startsWith('image/'));
+  if (!fresh.length) { alert('이미지 파일을 선택해주세요.'); return; }
   fresh.forEach(f => {
     const rec = mkRecord(f);
     state.imgs.push(rec);
     const reader = new FileReader();
-    reader.onload = e => {
-      loadAndOptimize(e.target.result, img => {
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
         rec.rawImg = img;
-        autoDetectCrop(rec);
-        processRecord(rec);
+        try { autoDetectCrop(rec); } catch(e) { console.warn('autoDetectCrop:', e); }
+        try { processRecord(rec); } catch(e) { console.warn('processRecord:', e); }
         renderImgGrid();
         renderFilmstrip();
         updateBatchSummary();
-      });
+      };
+      img.onerror = () => {
+        console.warn('이미지 로드 실패:', f.name);
+        renderImgGrid();
+        updateBatchSummary();
+      };
+      img.src = ev.target.result;
     };
+    reader.onerror = () => console.warn('FileReader 실패:', f.name);
     reader.readAsDataURL(f);
   });
   renderImgGrid();
