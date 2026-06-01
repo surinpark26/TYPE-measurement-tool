@@ -2473,32 +2473,40 @@ async function ghPutFile(cfg, path, contentB64, commitMsg) {
   return await r.json();
 }
 
-// GitHub에서 파일 다운로드 (GET)
+// GitHub에서 파일 다운로드 — 항상 Git Blobs API 사용 (CORS 문제 없음)
 async function ghGetFile(cfg, path) {
-  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(path).replace(/%2F/g,'/')}`;
-  const r = await fetch(url, {
-    headers: { Authorization: `Bearer ${cfg.token}`, Accept: 'application/vnd.github+json' }
-  });
+  const headers = { Authorization: `Bearer ${cfg.token}`, Accept: 'application/vnd.github+json' };
+
+  // 1단계: contents API로 SHA 얻기
+  const contentsUrl = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(path).replace(/%2F/g,'/')}`;
+  const r = await fetch(contentsUrl, { headers });
   if (!r.ok) { const e = await r.json(); throw new Error(e.message); }
   const d = await r.json();
 
-  // 파일이 크면(>1MB) GitHub API는 content를 비워두고 download_url만 제공
-  if (d.download_url && (!d.content || d.content.trim() === '')) {
-    const dr = await fetch(d.download_url, {
-      headers: { Authorization: `Bearer ${cfg.token}` }
-    });
-    if (!dr.ok) throw new Error('다운로드 실패: ' + dr.status);
-    return await dr.text();
+  // 2단계: 작은 파일은 content 바로 사용
+  if (d.content && d.content.trim() !== '') {
+    const b64 = d.content.replace(/\n/g, '');
+    try { return decodeURIComponent(escape(atob(b64))); } catch { return atob(b64); }
   }
 
-  // 일반 크기: base64 디코딩 (한글 안전하게)
-  const b64 = d.content.replace(/\n/g, '');
+  // 3단계: 큰 파일은 Git Blobs API로 SHA 직접 요청 (raw.githubusercontent.com 안 씀)
+  if (!d.sha) throw new Error('파일 SHA를 찾을 수 없습니다');
+  const blobUrl = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/git/blobs/${d.sha}`;
+  const br = await fetch(blobUrl, { headers: { ...headers, Accept: 'application/vnd.github.raw+json' } });
+  if (!br.ok) throw new Error('Blob 다운로드 실패: ' + br.status);
+
+  // Accept: raw+json 이면 텍스트 그대로 반환
+  const text = await br.text();
+  // JSON 응답인지 base64인지 판별
   try {
-    // 저장 시 btoa(unescape(encodeURIComponent())) 로 인코딩했으므로 역순으로
-    return decodeURIComponent(escape(atob(b64)));
+    const bd = JSON.parse(text);
+    if (bd.content) {
+      const b64 = bd.content.replace(/\n/g, '');
+      try { return decodeURIComponent(escape(atob(b64))); } catch { return atob(b64); }
+    }
+    return text;
   } catch {
-    // fallback: 일반 atob
-    return atob(b64);
+    return text;
   }
 }
 
