@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>보진재 측정툴 v8</title>
+<title>보진재 측정툴 v9</title>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <style>
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -146,14 +146,52 @@ input, select { font-family:inherit; }
   padding:7px 14px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0;
 }
 .s3-glyph { font-size:22px; font-weight:700; }
-.s3-body  { flex:1; overflow-y:auto; padding:10px 14px; }
-.result-imgs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
-.result-img  { display:flex; flex-direction:column; align-items:center; gap:2px; }
-.result-img span { font-size:10px; color:var(--text-3); font-weight:700; text-transform:uppercase; }
-.result-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(185px,1fr)); gap:6px; }
-.rc { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:8px 9px; }
-.rc h3 { font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.3px; margin-bottom:5px; padding-bottom:4px; border-bottom:1px solid var(--border-lt); }
-.rv { display:flex; justify-content:space-between; padding:2px 0; }
+.s3-body  { flex:1; overflow:hidden; display:flex; min-height:0; }
+/* 결과 — 좌우 분할 */
+.s3-left  {
+  width:340px; flex-shrink:0; padding:12px 10px;
+  display:flex; flex-direction:column; gap:8px;
+  border-right:1px solid var(--border); overflow-y:auto;
+}
+.s3-right { flex:1; overflow-y:auto; padding:10px 14px; }
+.result-imgs { display:flex; gap:6px; flex-wrap:wrap; }
+.result-img  { display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; }
+.result-img span {
+  font-size:9px; color:var(--text-3); font-weight:700; text-transform:uppercase;
+  padding:1px 5px; border-radius:3px; background:var(--bg);
+}
+.result-img.is-active span { background:var(--accent); color:#fff; }
+.result-img canvas { border-radius:4px; border:2px solid transparent; transition:border-color .12s; }
+.result-img.is-active canvas { border-color:var(--accent); }
+/* 결과 큰 미리보기 */
+.s3-preview {
+  display:flex; align-items:center; justify-content:center;
+  background:var(--bg); border-radius:var(--radius);
+  border:1px solid var(--border); overflow:hidden; aspect-ratio:1;
+}
+.s3-preview canvas { display:block; max-width:100%; max-height:100%; }
+/* 균형점 시각화 */
+.balance-viz {
+  background:var(--bg); border:1px solid var(--border); border-radius:var(--radius);
+  padding:8px; display:flex; flex-direction:column; gap:4px;
+}
+.balance-viz__title { font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; }
+.balance-bar { display:flex; align-items:center; gap:6px; }
+.balance-bar__label { font-size:10px; color:var(--text-3); width:14px; text-align:center; flex-shrink:0; }
+.balance-bar__track {
+  flex:1; height:10px; background:#e5e5e5; border-radius:5px; position:relative; overflow:visible;
+}
+.balance-bar__center { position:absolute; left:50%; top:-2px; width:1px; height:14px; background:var(--border); }
+.balance-bar__fill {
+  position:absolute; height:100%; border-radius:5px;
+  background:var(--accent); transition:all .3s;
+}
+.balance-bar__val { font-size:10px; font-weight:700; width:46px; text-align:right; flex-shrink:0; }
+/* 결과 카드 */
+.result-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:5px; }
+.rc { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:7px 8px; }
+.rc h3 { font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px; padding-bottom:3px; border-bottom:1px solid var(--border-lt); }
+.rv { display:flex; justify-content:space-between; padding:1px 0; }
 .rv .k { font-size:11px; color:var(--text-3); }
 .rv .v { font-size:11px; font-weight:700; }
 .rv .v--pos  { color:var(--err); }
@@ -226,6 +264,14 @@ input[type="range"] { accent-color:var(--text); width:76px; }
   overflow:hidden; cursor:pointer; transition:box-shadow .12s, border-color .12s;
   background:var(--surface); position:relative;
 }
+.batch-card__del {
+  position:absolute; top:4px; left:4px; width:20px; height:20px;
+  background:rgba(220,38,38,.85); color:#fff; border:none; border-radius:4px;
+  font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .15s; z-index:2; line-height:1;
+}
+.batch-card:hover .batch-card__del { opacity:1; }
+.batch-card__del:hover { background:var(--err); }
 .batch-card:hover       { box-shadow:0 2px 8px rgba(0,0,0,.1); border-color:#bbb; }
 .batch-card.conf--ok    { border-color:var(--ok); }
 .batch-card.conf--warn  { border-color:var(--warn); }
@@ -319,13 +365,30 @@ input[type="range"] { accent-color:var(--text); width:76px; }
 .gh-file-item__name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .gh-file-item__size { font-size:10px; color:var(--text-3); white-space:nowrap; }
 .gh-empty { font-size:12px; color:var(--text-3); text-align:center; padding:20px 0; }
+
+/* ── 선택 박스 수치 편집기 ── */
+.box-editor {
+  background:var(--ok-bg); border:1px solid var(--ok-border);
+  border-radius:var(--radius); padding:6px 8px;
+  display:none; flex-direction:column; gap:4px; flex-shrink:0;
+}
+.box-editor.is-active { display:flex; }
+.box-editor__title { font-size:10px; font-weight:700; color:var(--ok); }
+.box-editor__grid { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.box-editor__field { display:flex; flex-direction:column; gap:1px; }
+.box-editor__field label { font-size:9px; color:var(--text-3); font-weight:700; }
+.box-editor__field input {
+  width:100%; padding:2px 5px; border:1px solid var(--ok-border);
+  border-radius:3px; font-size:11px; background:#fff; color:var(--text);
+}
+.box-editor__hint { font-size:9px; color:var(--text-3); line-height:1.4; }
 </style>
 </head>
 <body>
 <div class="app">
 
   <header class="topbar">
-    <span class="topbar__brand">보진재 측정툴 v8</span>
+    <span class="topbar__brand">보진재 측정툴 v9</span>
     <nav class="step-nav">
       <button class="step-nav__btn is-active" id="navBtn1">1. 이미지 선택</button>
       <span class="step-nav__sep">›</span>
@@ -495,7 +558,17 @@ input[type="range"] { accent-color:var(--text); width:76px; }
         <div id="autoStatus" style="font-size:10px;color:var(--text-3);line-height:1.5"></div>
         <div id="tplStatus" style="font-size:10px;color:var(--purple)"></div>
         <div class="card card--info" style="font-size:11px;color:#1e40af;line-height:1.5">
-          드래그 새 박스 · 클릭 이동<br>모서리 크기조절 · 우클릭 삭제<br><span style="color:#6b7280">목록 우클릭도 삭제 가능</span>
+          드래그 새 박스 · 클릭 이동<br>모서리 크기조절 · 우클릭/Delete 삭제<br><span style="color:#6b7280">Tab: 다음 박스 · 목록 우클릭도 삭제</span>
+        </div>
+        <div class="box-editor" id="boxEditor">
+          <div class="box-editor__title" id="boxEditorTitle">선택된 박스</div>
+          <div class="box-editor__grid">
+            <div class="box-editor__field"><label>X (px)</label><input type="number" id="beX" min="0" max="1000"></div>
+            <div class="box-editor__field"><label>Y (px)</label><input type="number" id="beY" min="0" max="1000"></div>
+            <div class="box-editor__field"><label>W (px)</label><input type="number" id="beW" min="5" max="1000"></div>
+            <div class="box-editor__field"><label>H (px)</label><input type="number" id="beH" min="5" max="1000"></div>
+          </div>
+          <div class="box-editor__hint">Tab: 다음 박스 · Delete: 삭제</div>
         </div>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-3);margin-top:2px;display:flex;align-items:center;justify-content:space-between;">
           <span>박스 목록</span>
@@ -521,8 +594,35 @@ input[type="range"] { accent-color:var(--text); width:76px; }
       </div>
     </div>
     <div class="s3-body">
-      <div class="result-imgs" id="resultImgs"></div>
-      <div class="result-cards" id="resultCards"></div>
+      <div class="s3-left" id="s3Left">
+        <!-- 썸네일 탭 -->
+        <div class="result-imgs" id="resultImgs"></div>
+        <!-- 큰 미리보기 -->
+        <div class="s3-preview" id="s3Preview"></div>
+        <!-- 균형 시각화 -->
+        <div class="balance-viz" id="balanceViz" style="display:none">
+          <div class="balance-viz__title">⚖ 균형점 편차</div>
+          <div class="balance-bar">
+            <span class="balance-bar__label">X</span>
+            <div class="balance-bar__track">
+              <div class="balance-bar__center"></div>
+              <div class="balance-bar__fill" id="balBarX"></div>
+            </div>
+            <span class="balance-bar__val" id="balValX">—</span>
+          </div>
+          <div class="balance-bar">
+            <span class="balance-bar__label">Y</span>
+            <div class="balance-bar__track">
+              <div class="balance-bar__center"></div>
+              <div class="balance-bar__fill" id="balBarY"></div>
+            </div>
+            <span class="balance-bar__val" id="balValY">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="s3-right">
+        <div class="result-cards" id="resultCards"></div>
+      </div>
     </div>
   </div>
 
@@ -1484,6 +1584,36 @@ function resizeMC() {
   );
 })();
 
+
+/* ── 선택 박스 수치 편집기 ─────────────────────────────────── */
+function updateBoxEditor() {
+  const rec = cur();
+  const editor = document.getElementById('boxEditor');
+  if (!rec?.selBoxId) { editor.classList.remove('is-active'); return; }
+  const b = rec.boxes.find(b => b.id === rec.selBoxId);
+  if (!b) { editor.classList.remove('is-active'); return; }
+  editor.classList.add('is-active');
+  document.getElementById('boxEditorTitle').textContent = b.label === '?' ? '미분류 박스' : b.label;
+  document.getElementById('beX').value = b.x;
+  document.getElementById('beY').value = b.y;
+  document.getElementById('beW').value = b.w;
+  document.getElementById('beH').value = b.h;
+}
+
+['beX','beY','beW','beH'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const rec = cur(); if (!rec?.selBoxId) return;
+    const b = rec.boxes.find(b => b.id === rec.selBoxId); if (!b) return;
+    const x = parseInt(document.getElementById('beX').value)||0;
+    const y = parseInt(document.getElementById('beY').value)||0;
+    const w = Math.max(5, parseInt(document.getElementById('beW').value)||5);
+    const h = Math.max(5, parseInt(document.getElementById('beH').value)||5);
+    b.x = Math.max(0, Math.min(PROC-w, x));
+    b.y = Math.max(0, Math.min(PROC-h, y));
+    b.w = w; b.h = h;
+    schedMark();
+  });
+});
 function renderMark() {
   const rec = cur(); if (!rec?.procCanvas) return;
   MC.width = MC.height = MDISP;
@@ -1613,8 +1743,8 @@ MC.addEventListener('mousedown', e => {
   const mx=(e.clientX-r.left)/MSC, my=(e.clientY-r.top)/MSC;
   if (rec.selBoxId) { const h=getHandleAt(rec,mx,my); if(h){markState='resizing';resizeHandle=h;const b=rec.boxes.find(b=>b.id===rec.selBoxId);drawStart={ox:b.x,oy:b.y,ow:b.w,oh:b.h};return;} }
   const hit=getBoxAt(rec,mx,my);
-  if (hit) { rec.selBoxId=hit.id; markState='moving'; moveOff={x:mx-hit.x,y:my-hit.y}; renderMark(); renderBoxList(); return; }
-  rec.selBoxId=null; markState='drawing'; drawStart={x:mx,y:my,curX:mx,curY:my}; renderMark(); renderBoxList();
+  if (hit) { rec.selBoxId=hit.id; markState='moving'; moveOff={x:mx-hit.x,y:my-hit.y}; renderMark(); renderBoxList(); updateBoxEditor(); return; }
+  rec.selBoxId=null; markState='drawing'; drawStart={x:mx,y:my,curX:mx,curY:my}; renderMark(); renderBoxList(); updateBoxEditor();
 });
 MC.addEventListener('mousemove', e => {
   const rec=cur(); if(!rec) return;
@@ -1655,16 +1785,40 @@ MC.addEventListener('mouseup', () => {
     }
   }
   markState='idle'; drawStart=null; moveOff=null; resizeHandle=null;
-  renderMark(); renderBoxList();
+  renderMark(); renderBoxList(); updateBoxEditor();
 });
 
 MC.setAttribute('tabindex', '0');
 MC.style.outline = 'none';
 MC.addEventListener('mousedown', () => MC.focus());
 MC.addEventListener('keydown', e => {
+  const rec = cur(); if (!rec) return;
+
+  // Tab — 다음/이전 박스 선택
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    if (!rec.boxes.length) return;
+    const idx = rec.boxes.findIndex(b => b.id === rec.selBoxId);
+    const next = e.shiftKey
+      ? (idx <= 0 ? rec.boxes.length - 1 : idx - 1)
+      : (idx >= rec.boxes.length - 1 ? 0 : idx + 1);
+    rec.selBoxId = rec.boxes[next].id;
+    renderMark(); renderBoxList(); updateBoxEditor();
+    return;
+  }
+
+  // Delete / Backspace — 선택 박스 삭제
+  if ((e.key === 'Delete' || e.key === 'Backspace') && rec.selBoxId) {
+    e.preventDefault();
+    rec.boxes = rec.boxes.filter(b => b.id !== rec.selBoxId);
+    rec.selBoxId = null;
+    renderMark(); renderBoxList(); updateBoxEditor();
+    return;
+  }
+
   if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
   e.preventDefault();
-  const rec = cur(); if (!rec?.selBoxId) return;
+  if (!rec?.selBoxId) return;
   const b = rec.boxes.find(b => b.id === rec.selBoxId); if (!b) return;
   const step = (e.metaKey||e.ctrlKey) ? 100 : e.shiftKey ? 10 : 1;
   if (e.key==='ArrowLeft')  b.x = Math.max(0, b.x - step);
@@ -1708,6 +1862,7 @@ function renderImgGrid() {
     return `<div class="batch-card${confCls?' '+confCls:''}" data-bi="${i}">
       ${thumbSrc?`<img class="batch-card__thumb" src="${thumbSrc}" loading="lazy">`:`<div class="batch-card__thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:11px">로딩중</div>`}
       <div class="batch-card__badge ${badgeCls}"></div>
+      <button class="batch-card__del" data-del="${i}" title="삭제">✕</button>
       <div class="batch-card__body">
         <div class="batch-card__name">${rec.charName||'?'}</div>
         <div class="batch-card__meta">${MN[rec.moiming]}${rec.hasBatchim?' 받침':''}</div>
@@ -1822,6 +1977,60 @@ function pRow(e, isSero) {
     ${e.hPropPct!=null?`<div class="rv"><span class="k">H비례%(${ref})</span><span class="v v--prop">${e.hPropPct}%</span></div>`:''}`;
 }
 
+let _activeAnnType = 'all';
+function _setPreview(type, rec) {
+  _activeAnnType = type;
+  const m = rec.measure;
+  // 썸네일 active 표시
+  document.querySelectorAll('.result-img').forEach(el => {
+    el.classList.toggle('is-active', el.dataset.type === type);
+  });
+  // 큰 미리보기 (s3Preview 크기에 맞게)
+  const prev = document.getElementById('s3Preview');
+  const sz = Math.min(prev.clientWidth || 280, prev.clientHeight || 280, 320);
+  const bigC = mkCanvas(sz, sz);
+  const ctx = bigC.getContext('2d');
+  ctx.drawImage(rec.procCanvas, 0, 0, sz, sz);
+  const sc = sz / PROC;
+  const cxD = m.cxPx * sc, cyD = m.cyPx * sc;
+  if (type==='prop'||type==='all') {
+    const all={...m.comps,...m.hols,...m.gaps,...m.steps};
+    Object.entries(all).forEach(([lbl,cp])=>{
+      const col=colOf(lbl);
+      ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.setLineDash([3,2]);
+      ctx.strokeRect(cp.x*sc,cp.y*sc,cp.w*sc,cp.h*sc);
+      ctx.fillStyle=col; ctx.font='bold 10px sans-serif'; ctx.setLineDash([]);
+      ctx.fillText(lbl,cp.x*sc+2,cp.y*sc+10);
+    });
+  }
+  if (type==='cp'||type==='all') {
+    ctx.fillStyle='rgba(255,130,0,.9)'; ctx.beginPath(); ctx.arc(cxD,cyD,5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(255,130,0,1)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cxD,cyD,10,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='rgba(255,130,0,.9)'; ctx.font='bold 11px sans-serif';
+    ctx.fillText(`${m.devX>0?'+':''}${m.devX}, ${m.devY>0?'+':''}${m.devY}`,cxD+12,cyD+5);
+  }
+  if (type==='axis'||type==='all') {
+    const ang=m.balAngle*Math.PI/180, len=sz*0.42;
+    ctx.strokeStyle='rgba(255,130,0,.8)'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(cxD-Math.cos(ang)*len,cyD-Math.sin(ang)*len);
+    ctx.lineTo(cxD+Math.cos(ang)*len,cyD+Math.sin(ang)*len); ctx.stroke(); ctx.setLineDash([]);
+  }
+  prev.innerHTML = ''; prev.appendChild(bigC);
+
+  // 균형 바 업데이트
+  const viz = document.getElementById('balanceViz');
+  viz.style.display = '';
+  const dx = m.devX, dy = m.devY;
+  const clamp = v => Math.max(-20, Math.min(20, v));
+  const toLeft = v => { const c=clamp(v); return c>=0 ? `left:50%;width:${c/20*50}%` : `left:${50+c/20*50}%;width:${-c/20*50}%`; };
+  const dxL=dx>0?'우 +'+dx:dx<0?'좌 '+dx:'중심';
+  const dyL=dy>0?'상 +'+dy:dy<0?'하 '+dy:'중심';
+  document.getElementById('balBarX').style.cssText = toLeft(dx) + ';background:' + (Math.abs(dx)>5?'var(--err)':'var(--accent)');
+  document.getElementById('balBarY').style.cssText = toLeft(dy) + ';background:' + (Math.abs(dy)>5?'var(--err)':'var(--accent)');
+  document.getElementById('balValX').textContent = dxL;
+  document.getElementById('balValY').textContent = dyL;
+}
+
 function renderResults() {
   const rec=cur(); if(!rec?.measure) return;
   const m=rec.measure;
@@ -1829,10 +2038,15 @@ function renderResults() {
   document.getElementById('s3Title').textContent = `${rec.charName} · ${MN[rec.moiming]}${rec.hasBatchim?' · 받침':''}`;
   const ie=document.getElementById('resultImgs'); ie.innerHTML='';
   [['prop','비례'],['cp','균형점'],['axis','균형축'],['all','통합']].forEach(([t,lbl])=>{
-    const d=document.createElement('div'); d.className='result-img';
+    const d=document.createElement('div'); d.className='result-img'; d.dataset.type=t;
+    d.style.cursor='pointer';
     const s=document.createElement('span'); s.textContent=lbl;
-    d.appendChild(s); d.appendChild(mkAnn(rec,t)); ie.appendChild(d);
+    d.appendChild(s); d.appendChild(mkAnn(rec,t));
+    d.addEventListener('click', () => _setPreview(t, rec));
+    ie.appendChild(d);
   });
+  // 초기 큰 미리보기
+  setTimeout(() => _setPreview(_activeAnnType, rec), 0);
   const dx=m.devX, dy=m.devY;
   const dxL=dx>0?'우':dx<0?'좌':'중', dyL=dy>0?'상':dy<0?'하':'중';
   let html = `
@@ -1953,8 +2167,20 @@ document.getElementById('navBtn1').addEventListener('click', () => gotoPage(1));
 document.getElementById('navBtn2').addEventListener('click', () => { if (state.curIdx >= 0) gotoPage(2); });
 document.getElementById('navBtn3').addEventListener('click', () => { const r=cur(); if (r?.measure) gotoPage(3); });
 
-// Image grid (page 1) — click card to edit
+// Image grid (page 1) — click card to edit / delete
 document.getElementById('imgGrid').addEventListener('click', e => {
+  // 삭제 버튼
+  const delBtn = e.target.closest('[data-del]');
+  if (delBtn) {
+    e.stopPropagation();
+    const idx = parseInt(delBtn.dataset.del);
+    if (confirm(`"${state.imgs[idx]?.charName || '?'}" 이미지를 삭제할까요?`)) {
+      state.imgs.splice(idx, 1);
+      if (state.curIdx >= state.imgs.length) state.curIdx = state.imgs.length - 1;
+      renderImgGrid(); renderFilmstrip(); updateBatchSummary();
+    }
+    return;
+  }
   const card = e.target.closest('[data-bi]');
   if (!card) return;
   selectImg(parseInt(card.dataset.bi));
@@ -2044,7 +2270,7 @@ document.getElementById('boxList').addEventListener('click', e => {
     if (idx>=0 && idx<rec.boxes.length-1) {
       rec.boxes.push(rec.boxes.splice(idx,1)[0]);
     }
-    renderMark(); renderBoxList();
+    renderMark(); renderBoxList(); updateBoxEditor();
     MC.focus();
   }
 });
