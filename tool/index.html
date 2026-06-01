@@ -382,10 +382,29 @@ input[type="range"] { accent-color:var(--text); width:76px; }
   border-radius:3px; font-size:11px; background:#fff; color:var(--text);
 }
 .box-editor__hint { font-size:9px; color:var(--text-3); line-height:1.4; }
+
+/* ── 사이트 상단 네비게이션 ── */
+.site-topnav{height:34px;background:#fff;border-bottom:1px solid #dddad3;display:flex;align-items:center;padding:0 14px;flex-shrink:0;z-index:20;}
+.site-topnav__brand{font-size:11px;font-weight:800;color:#1a1a1a;padding-right:12px;border-right:1px solid #dddad3;margin-right:10px;text-decoration:none;white-space:nowrap;}
+.site-topnav__brand span{color:#2563eb;}
+.site-topnav__links{display:flex;gap:2px;}
+.site-topnav__link{display:flex;align-items:center;gap:3px;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;color:#999;text-decoration:none;transition:all .12s;white-space:nowrap;}
+.site-topnav__link:hover{background:#f0efe9;color:#1a1a1a;}
+.site-topnav__link.is-active{background:#2563eb;color:#fff;}
 </style>
 </head>
 <body>
 <div class="app">
+
+  <nav class="site-topnav">
+    <a class="site-topnav__brand" href="../"><span>보진재</span> 연구툴</a>
+    <div class="site-topnav__links">
+      <a class="site-topnav__link" href="../">홈</a>
+      <a class="site-topnav__link is-active" href="../tool/">📐 측정툴</a>
+      <a class="site-topnav__link" href="../data/">📊 데이터 뷰어</a>
+      <a class="site-topnav__link" href="../images/">🖼 이미지 관리</a>
+    </div>
+  </nav>
 
   <header class="topbar">
     <span class="topbar__brand">보진재 측정툴 v9</span>
