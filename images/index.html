@@ -63,11 +63,23 @@ input,select{font-family:inherit;}
 .folder-item__icon{font-size:13px;flex-shrink:0;}
 
 /* IMAGE GRID */
-.img-area{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-.img-grid{flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;align-content:start;}
-.img-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .12s;position:relative;}
+.img-area{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+.img-area.is-drag .drop-overlay{opacity:1;}
+.img-grid{
+  flex:1; min-height:0; overflow-y:auto;
+  padding:14px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  gap:10px;
+  align-content:start;  /* 카드가 위에서부터 채워짐 — 세로 늘어남 방지 */
+  align-items:start;    /* 개별 카드 높이 고정 */
+}
+.img-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;cursor:pointer;transition:all .12s;position:relative;
+}
 .img-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.12);border-color:#bbb;transform:translateY(-1px);}
-.img-card__thumb{width:100%;aspect-ratio:1;object-fit:contain;background:var(--bg);display:block;}
+.img-card__thumb{width:100%;aspect-ratio:1 / 1;object-fit:contain;background:var(--bg);display:block;}
 .img-card__thumb--blank{background:var(--border-lt);display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:11px;}
 .img-card__body{padding:5px 7px 7px;}
 .img-card__name{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -81,8 +93,6 @@ input,select{font-family:inherit;}
 
 /* DROP OVERLAY */
 .drop-overlay{position:absolute;inset:0;background:rgba(37,99,235,.08);border:3px dashed var(--accent);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--accent);pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;}
-.img-area{position:relative;}
-.img-area.is-drag .drop-overlay{opacity:1;}
 
 /* IMAGE PREVIEW MODAL */
 .img-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;}
@@ -136,7 +146,7 @@ input,select{font-family:inherit;}
 .img-grid.view-list .img-card__thumb--blank { font-size:16px; }
 
 /* 미리보기 뷰 — 썸네일 크게 */
-.img-grid.view-preview .img-card__thumb { aspect-ratio:1; height:auto; }
+.img-grid.view-preview .img-card__thumb { aspect-ratio:1 / 1; }
 
 /* 폴더 카드 — 목록뷰에서도 일관되게 */
 .img-grid.view-list .img-card[data-dir] {
