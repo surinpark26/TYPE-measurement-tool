@@ -1301,37 +1301,45 @@ function calcMeasure(rec) {
   const cxGu=bW>0?r2(((cxPx-mnX)/bW)*100):50, cyGu=bH>0?r2(100-((cyPx-mnY)/bH)*100):50;
   const devX=r2(cxGu-50), devY=r2(cyGu-50);
   // 균형축: 상단(첫닿자+홀자) 픽셀 무게중심 → 하단(받침닿자) 픽셀 무게중심
-  // 박스 영역을 기반으로 상단/하단 영역을 구분
-  // calcMeasure 시점에는 아직 boxes가 정해져 있으므로 박스 기반으로 계산
   let balAngle = 0;
   let topCx = null, topCy = null, botCx = null, botCy = null;
 
-  // 상단/하단 박스 영역을 픽셀 수준에서 무게중심 계산
   const topLabels = new Set(['첫닿자','가로모임꼴','세로모임꼴','가로획','세로획','가로보','세로기둥','겹기둥','안기둥','밖기둥','이음보']);
   const botLabels = new Set(['받침닿자']);
   let tSx=0,tSy=0,tSw=0, bSx=0,bSy=0,bSw=0;
+
   rec.boxes.forEach(b => {
-    if (!topLabels.has(b.label) && !botLabels.has(b.label)) return;
     const isTop = topLabels.has(b.label);
-    const x0=Math.max(0,b.x), y0=Math.max(0,b.y);
-    const x1=Math.min(PROC,b.x+b.w), y1=Math.min(PROC,b.y+b.h);
-    for (let py=y0;py<y1;py++) for (let px=x0;px<x1;px++) {
-      const k=(1-d[(py*PROC+px)*4]/255)*100; if(k<rec.kThresh) continue;
-      const w=k/100;
-      if (isTop) { tSx+=px*w; tSy+=py*w; tSw+=w; }
-      else       { bSx+=px*w; bSy+=py*w; bSw+=w; }
+    const isBot = botLabels.has(b.label);
+    if (!isTop && !isBot) return;
+    const x0=Math.max(0,Math.round(b.x)), y0=Math.max(0,Math.round(b.y));
+    const x1=Math.min(PROC,Math.round(b.x+b.w)), y1=Math.min(PROC,Math.round(b.y+b.h));
+    for (let py=y0; py<y1; py++) {
+      for (let px=x0; px<x1; px++) {
+        const idx = (py * PROC + px) * 4;
+        // 그레이스케일 변환 후 K값 계산
+        const gray = 0.299*d[idx] + 0.587*d[idx+1] + 0.114*d[idx+2];
+        const k = (1 - gray/255) * 100;
+        if (k < rec.kThresh) continue;
+        const w = k / 100;
+        if (isTop) { tSx+=px*w; tSy+=py*w; tSw+=w; }
+        else       { bSx+=px*w; bSy+=py*w; bSw+=w; }
+      }
     }
   });
-  if (tSw>0) { topCx=tSx/tSw; topCy=tSy/tSw; }
-  if (bSw>0) { botCx=bSx/bSw; botCy=bSy/bSw; }
 
-  // 받침 있고 두 중심점이 모두 유효할 때만 기울기 계산
-  if (topCx!==null && botCx!==null) {
-    const dx2 = botCx - topCx, dy2 = botCy - topCy;
-    // 수직(아래 방향)을 0°로, 오른쪽 기울기 = +, 왼쪽 = -
-    balAngle = r2(Math.atan2(dx2, dy2) * 180 / Math.PI);
-  } else if (sw>0) {
-    // 받침 없는 경우: 전체 픽셀 공분산 방향 (기존 방식)
+  if (tSw > 0) { topCx = tSx/tSw; topCy = tSy/tSw; }
+  if (bSw > 0) { botCx = bSx/bSw; botCy = bSy/bSw; }
+
+  if (topCx !== null && botCx !== null) {
+    // 상단→하단 벡터. 화면 Y는 아래가 +이므로 dy는 양수가 정상.
+    // 수직 기준(0°): 완전 수직이면 dx=0, dy>0 → atan2(0, dy) = 0°
+    // 우측 기울기 +, 좌측 기울기 -
+    const dx = botCx - topCx;
+    const dy = botCy - topCy;  // 받침이 아래이므로 보통 양수
+    balAngle = r2(Math.atan2(dx, dy) * 180 / Math.PI);
+  } else if (sw > 0) {
+    // 받침 없는 경우 fallback
     const mx_=sx/sw, my_=sy/sw;
     const cxx=sx2/sw-mx_*mx_, cyy=sy2/sw-my_*my_, cxy_=sxy/sw-mx_*my_;
     balAngle = r2(.5*Math.atan2(2*cxy_, cxx-cyy)*180/Math.PI - 90);
@@ -2139,8 +2147,9 @@ function renderResults() {
   </div>
   <div class="rc"><h3>↗ 균형축</h3>
     <div class="rv"><span class="k">기울기</span><span class="v">${m.balAngle > 0 ? '+' : ''}${m.balAngle}°</span></div>
-    ${m.topCx!=null?`<div class="rv"><span class="k">상단 중심</span><span class="v v--neg">(${Math.round(m.topCx)}, ${Math.round(m.topCy)})</span></div>`:''}
-    ${m.botCx!=null?`<div class="rv"><span class="k">하단 중심</span><span class="v v--pos">(${Math.round(m.botCx)}, ${Math.round(m.botCy)})</span></div>`:''}
+    ${m.topCx!=null?`<div class="rv"><span class="k">상단 중심 (px)</span><span class="v v--neg">${Math.round(m.topCx)}, ${Math.round(m.topCy)}</span></div>`:''}
+    ${m.botCx!=null?`<div class="rv"><span class="k">하단 중심 (px)</span><span class="v v--pos">${Math.round(m.botCx)}, ${Math.round(m.botCy)}</span></div>`:''}
+    ${(m.topCx!=null&&m.botCx!=null)?`<div class="rv"><span class="k">dx / dy</span><span class="v">${Math.round(m.botCx-m.topCx)} / ${Math.round(m.botCy-m.topCy)}</span></div>`:''}
     <div class="rv"><span class="k">픽셀수</span><span class="v">${m.pixelCount.toLocaleString()}</span></div>
   </div>`;
   ['낱글자','첫닿자','받침닿자'].forEach(lbl=>{const e=m.comps[lbl];if(!e)return;html+=`<div class="rc"><h3>${lbl}</h3>${pRow(e,m.isSero)}</div>`;});
