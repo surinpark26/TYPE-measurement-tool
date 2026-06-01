@@ -70,19 +70,20 @@ input,select{font-family:inherit;}
   padding:14px;
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  grid-auto-rows:152px;  /* 썸네일 120px + 이름영역 32px 고정 */
   gap:10px;
-  align-content:start;  /* 카드가 위에서부터 채워짐 — 세로 늘어남 방지 */
-  align-items:start;    /* 개별 카드 높이 고정 */
+  align-content:start;
+  align-items:start;
 }
 .img-card{
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   overflow:hidden;cursor:pointer;transition:all .12s;position:relative;
-  display:flex;flex-direction:column;  /* 썸네일 + 이름 세로 배치 */
+  display:flex;flex-direction:column;height:100%;  /* grid 행 높이에 맞춤 */
 }
 .img-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.12);border-color:#bbb;transform:translateY(-1px);}
 .img-card__thumb{
-  width:100%;aspect-ratio:1 / 1;object-fit:contain;
-  background:var(--bg);display:block;flex-shrink:0;
+  width:100%;flex:1;min-height:0;  /* 남은 공간 차지 */
+  object-fit:contain;background:var(--bg);display:block;
 }
 .img-card__thumb--blank{background:var(--border-lt);display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:11px;}
 .img-card__body{padding:5px 7px 7px;}
@@ -127,10 +128,15 @@ input,select{font-family:inherit;}
   grid-template-columns:unset;
 }
 .img-grid.view-preview {
-  grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  grid-auto-rows:232px;
+  gap:14px;
 }
 
 /* 목록 뷰 카드 */
+.img-grid.view-list {
+  grid-auto-rows:auto;  /* 목록뷰는 행 높이 고정 불필요 */
+}
 .img-grid.view-list .img-card {
   border-radius:0; border-left:none; border-right:none; border-top:none;
   display:flex; flex-direction:row; align-items:center; gap:10px;
