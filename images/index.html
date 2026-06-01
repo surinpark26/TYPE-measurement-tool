@@ -105,6 +105,53 @@ input,select{font-family:inherit;}
 .upload-progress{padding:8px 14px;background:var(--ok-bg);border-top:1px solid var(--ok-border);font-size:11px;color:var(--ok);display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .progress-bar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
 .progress-bar__fill{height:100%;background:var(--ok);border-radius:3px;transition:width .3s;}
+
+/* 뷰 모드 */
+/* 아이콘 뷰 (기본) — 기존 .img-grid 그대로 */
+.img-grid.view-list {
+  display:flex; flex-direction:column; gap:0; padding:0;
+  grid-template-columns:unset;
+}
+.img-grid.view-preview {
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px;
+}
+
+/* 목록 뷰 카드 */
+.img-grid.view-list .img-card {
+  border-radius:0; border-left:none; border-right:none; border-top:none;
+  display:flex; flex-direction:row; align-items:center; gap:10px;
+  padding:6px 14px; transform:none !important; box-shadow:none !important;
+}
+.img-grid.view-list .img-card:hover { background:var(--accent-bg); }
+.img-grid.view-list .img-card__thumb {
+  width:36px; height:36px; aspect-ratio:1; flex-shrink:0; border-radius:3px;
+}
+.img-grid.view-list .img-card__body { flex:1; min-width:0; padding:0; display:flex; align-items:center; gap:12px; }
+.img-grid.view-list .img-card__name { flex:1; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.img-grid.view-list .img-card__meta { font-size:11px; color:var(--text-3); white-space:nowrap; min-width:52px; text-align:right; }
+.img-grid.view-list .img-card__del  { position:static; opacity:1; background:none; color:var(--text-3); width:22px; height:22px; font-size:12px; border-radius:4px; flex-shrink:0; }
+.img-grid.view-list .img-card__del:hover { background:var(--err-bg); color:var(--err); }
+.img-grid.view-list .img-card__open { position:static; opacity:1; background:none; color:var(--text-3); width:22px; height:22px; font-size:12px; border-radius:4px; flex-shrink:0; }
+.img-grid.view-list .img-card__open:hover { background:var(--accent-bg); color:var(--accent); }
+.img-grid.view-list .img-card__thumb--blank { font-size:16px; }
+
+/* 미리보기 뷰 — 썸네일 크게 */
+.img-grid.view-preview .img-card__thumb { aspect-ratio:1; height:auto; }
+
+/* 폴더 카드 — 목록뷰에서도 일관되게 */
+.img-grid.view-list .img-card[data-dir] {
+  padding:6px 14px;
+}
+.img-grid.view-list .img-card[data-dir] .img-card__thumb--blank {
+  width:36px; height:36px; font-size:18px;
+}
+
+/* 드롭다운 선택 */
+.view-select {
+  padding:3px 7px; font-size:11px; font-weight:700;
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  background:#f7f5f0; color:var(--text); cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -129,8 +176,20 @@ input,select{font-family:inherit;}
   <div class="path-bar" id="pathBar">
     <span class="path-seg" data-path="">🏠 루트</span>
   </div>
-  <button class="btn btn--ghost btn--sm" id="btnRefresh">🔄 새로고침</button>
-  <span class="status-bar" id="statusBar">—</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+    <select class="view-select" id="sortSelect" title="정렬">
+      <option value="date">최신 등록순</option>
+      <option value="name">이름순</option>
+      <option value="size">크기순</option>
+    </select>
+    <select class="view-select" id="viewSelect" title="보기 방식">
+      <option value="icon">🔲 아이콘</option>
+      <option value="list">☰ 목록</option>
+      <option value="preview">🖼 미리보기</option>
+    </select>
+    <button class="btn btn--ghost btn--sm" id="btnRefresh">🔄</button>
+    <span class="status-bar" id="statusBar">—</span>
+  </div>
 </div>
 
 <div class="main">
@@ -340,31 +399,58 @@ async function loadCurrentFolder(){
       grid.innerHTML='<div class="empty"><div class="empty__icon">📂</div><div class="empty__text">비어있음</div><div class="empty__sub">이미지를 업로드해주세요</div></div>';
       return;
     }
-    grid.innerHTML=
-      dirs.map(d=>`
-        <div class="img-card" data-dir="${d.name}" style="cursor:pointer;" onclick="enterFolder('${d.name}')">
-          <div class="img-card__thumb img-card__thumb--blank" style="font-size:32px;">📁</div>
-          <div class="img-card__body">
-            <div class="img-card__name">${d.name}</div>
-            <div class="img-card__meta">폴더</div>
-          </div>
-        </div>`).join('') +
-      imgs.map(img=>`
-        <div class="img-card" data-path="${img.path}" data-name="${img.name}" data-url="${img.download_url||''}">
-          <img class="img-card__thumb" src="${img.download_url||''}" loading="lazy" onerror="this.style.display='none'">
-          <button class="img-card__del" onclick="deleteImg(event,'${img.path}','${img.sha}','${img.name}')">✕</button>
-          <button class="img-card__open" title="측정툴에서 열기" onclick="openInTool(event,'${img.download_url||''}','${img.name}')">📐</button>
-          <div class="img-card__body">
-            <div class="img-card__name">${img.name}</div>
-            <div class="img-card__meta">${img.size?(img.size/1024).toFixed(0)+' KB':''}</div>
-          </div>
-        </div>`).join('');
+    // 정렬·뷰 상태로 렌더링
+    renderGrid(dirs, imgs);
   }catch(e){
     grid.innerHTML=`<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__text">불러오기 실패</div><div class="empty__sub">${e.message}</div></div>`;
     document.getElementById('statusBar').textContent='오류: '+e.message;
   }
   loadFolderTree();
 }
+
+// ── 정렬 & 뷰 렌더 ─────────────────────────────────────────
+let cachedDirs=[], cachedImgs=[];
+
+function renderGrid(dirs, imgs){
+  if(dirs!==undefined) { cachedDirs=dirs; cachedImgs=imgs; }
+  else { dirs=cachedDirs; imgs=cachedImgs; }
+
+  const sort=document.getElementById('sortSelect').value;
+  const view=document.getElementById('viewSelect').value;
+  const grid=document.getElementById('imgGrid');
+
+  // 정렬
+  let sorted=[...imgs];
+  if(sort==='name')  sorted.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  else if(sort==='size') sorted.sort((a,b)=>(b.size||0)-(a.size||0));
+  // 'date'는 GitHub API 반환 순서(최신순) 유지
+
+  // 뷰 클래스
+  grid.className='img-grid' + (view==='list'?' view-list':view==='preview'?' view-preview':'');
+
+  grid.innerHTML=
+    dirs.map(d=>`
+      <div class="img-card" data-dir="${d.name}" onclick="enterFolder('${d.name}')">
+        <div class="img-card__thumb img-card__thumb--blank" style="font-size:${view==='list'?'18':'32'}px;">📁</div>
+        <div class="img-card__body">
+          <div class="img-card__name">${d.name}</div>
+          <div class="img-card__meta">폴더</div>
+        </div>
+      </div>`).join('') +
+    sorted.map(img=>`
+      <div class="img-card" data-path="${img.path}" data-name="${img.name}" data-url="${img.download_url||''}">
+        <img class="img-card__thumb" src="${img.download_url||''}" loading="lazy" onerror="this.style.display='none'">
+        <button class="img-card__del" onclick="deleteImg(event,'${img.path}','${img.sha}','${img.name}')">✕</button>
+        <button class="img-card__open" title="측정툴에서 열기" onclick="openInTool(event,'${img.download_url||''}','${img.name}')">📐</button>
+        <div class="img-card__body">
+          <div class="img-card__name">${img.name}</div>
+          <div class="img-card__meta">${img.size?(img.size/1024).toFixed(0)+' KB':''}</div>
+        </div>
+      </div>`).join('');
+}
+
+document.getElementById('sortSelect').addEventListener('change', ()=>renderGrid());
+document.getElementById('viewSelect').addEventListener('change', ()=>renderGrid());
 
 function enterFolder(name){
   curPath=curPath?`${curPath}/${name}`:name;
