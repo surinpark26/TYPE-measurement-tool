@@ -291,6 +291,34 @@ input[type="range"] { accent-color:var(--text); width:76px; }
 }
 .gh-indicator--on  { background:#f0fdf4; color:var(--ok);   border-color:var(--ok-border); }
 .gh-indicator--off { background:var(--bg); color:var(--text-3); }
+
+/* ── GitHub 저장 다이얼로그 ── */
+.gh-save-modal {
+  background:var(--surface); border-radius:var(--radius-lg);
+  border:1px solid var(--border); padding:22px 24px;
+  width:460px; max-width:95vw; display:flex; flex-direction:column; gap:12px;
+  box-shadow:0 8px 32px rgba(0,0,0,.18);
+}
+.gh-save-modal h2 { font-size:14px; font-weight:700; }
+.gh-save-modal label { font-size:11px; font-weight:700; color:var(--text-3); display:block; margin-bottom:3px; }
+.gh-save-modal input[type=text] {
+  width:100%; padding:6px 9px; border:1px solid var(--border);
+  border-radius:var(--radius-sm); font-size:12px; background:#f7f5f0; color:var(--text);
+}
+.gh-save-modal input[type=text]:focus { outline:2px solid var(--accent); border-color:var(--accent); }
+.gh-file-list { display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto; }
+.gh-file-item {
+  display:flex; align-items:center; gap:8px; padding:7px 10px;
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  cursor:pointer; background:#f7f5f0; transition:background .1s, border-color .1s;
+  font-size:12px;
+}
+.gh-file-item:hover { background:var(--accent-bg); border-color:#93c5fd; }
+.gh-file-item.is-sel { background:var(--accent-bg); border-color:var(--accent); font-weight:700; }
+.gh-file-item__icon { font-size:14px; flex-shrink:0; }
+.gh-file-item__name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gh-file-item__size { font-size:10px; color:var(--text-3); white-space:nowrap; }
+.gh-empty { font-size:12px; color:var(--text-3); text-align:center; padding:20px 0; }
 </style>
 </head>
 <body>
@@ -322,6 +350,51 @@ input[type="range"] { accent-color:var(--text); width:76px; }
       <button class="btn btn--ghost btn--sm" id="btnGhLoad" title="GitHub에서 불러오기" style="display:none">☁ 불러오기</button>
     </div>
   </header>
+
+  <!-- GitHub 저장 다이얼로그 -->
+  <div class="gh-modal-overlay hidden" id="ghSaveDialog">
+    <div class="gh-save-modal">
+      <h2>☁ GitHub에 저장</h2>
+      <div>
+        <label>폴더 경로 (비우면 루트에 저장)</label>
+        <input type="text" id="ghSaveFolder" placeholder="예: data/세로모임꼴">
+      </div>
+      <div>
+        <label>파일명</label>
+        <input type="text" id="ghSaveFilename" placeholder="보진재_작업_2025-01-01.bjj">
+      </div>
+      <div id="ghSaveStatus" style="font-size:11px;min-height:16px;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button class="btn btn--ghost btn--sm" id="btnGhSaveDialogCancel">취소</button>
+        <button class="btn btn--ok btn--sm" id="btnGhSaveDialogOk">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GitHub 불러오기 다이얼로그 -->
+  <div class="gh-modal-overlay hidden" id="ghLoadDialog">
+    <div class="gh-save-modal">
+      <h2>☁ GitHub에서 불러오기</h2>
+      <div>
+        <label>폴더 경로 (비우면 루트에서 검색)</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="ghLoadFolder" placeholder="예: data/세로모임꼴" style="flex:1">
+          <button class="btn btn--ghost btn--sm" id="btnGhLoadRefresh">🔄 목록 갱신</button>
+        </div>
+      </div>
+      <div>
+        <label>파일 선택</label>
+        <div class="gh-file-list" id="ghFileList">
+          <div class="gh-empty">목록을 불러오는 중…</div>
+        </div>
+      </div>
+      <div id="ghLoadStatus" style="font-size:11px;min-height:16px;color:var(--text-3)"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button class="btn btn--ghost btn--sm" id="btnGhLoadDialogCancel">취소</button>
+        <button class="btn btn--ok btn--sm" id="btnGhLoadDialogOk">불러오기</button>
+      </div>
+    </div>
+  </div>
 
   <!-- GitHub 설정 모달 -->
   <div class="gh-modal-overlay hidden" id="ghModal">
@@ -2424,86 +2497,143 @@ async function ghListFiles(cfg) {
   return Array.isArray(items) ? items.filter(f => f.name.endsWith('.bjj')) : [];
 }
 
-// ── GitHub에 저장 ──────────────────────────────────────────────────────
-async function ghSaveWorkspace() {
+// ── GitHub 저장 다이얼로그 열기 ───────────────────────────────────────
+function ghSaveWorkspace() {
   const cfg = ghLoadCfg();
   if (!ghCfgValid(cfg)) { alert('GitHub 설정이 필요합니다. ☁ GitHub 버튼을 클릭하세요.'); return; }
   if (!state.imgs.length) { alert('저장할 작업이 없습니다.'); return; }
 
-  const btn = document.getElementById('btnGhSave');
-  btn.disabled = true; btn.textContent = '저장 중…';
+  const today = new Date().toISOString().slice(0,10);
+  const defaultName = `보진재_작업_${today}.bjj`;
+  document.getElementById('ghSaveFilename').value = defaultName;
+  document.getElementById('ghSaveFolder').value = cfg.folder || '';
+  document.getElementById('ghSaveStatus').textContent = '';
+  document.getElementById('ghSaveDialog').classList.remove('hidden');
+  setTimeout(() => document.getElementById('ghSaveFilename').select(), 50);
+}
+
+// ── 실제 GitHub 저장 실행 ──────────────────────────────────────────────
+async function _ghDoSave() {
+  const cfg = ghLoadCfg();
+  let filename = document.getElementById('ghSaveFilename').value.trim();
+  let folder   = document.getElementById('ghSaveFolder').value.trim();
+  const statusEl = document.getElementById('ghSaveStatus');
+
+  if (!filename) { statusEl.textContent = '파일명을 입력해주세요.'; statusEl.style.color='var(--err)'; return; }
+  if (!filename.endsWith('.bjj')) filename += '.bjj';
+
+  const okBtn = document.getElementById('btnGhSaveDialogOk');
+  okBtn.disabled = true; okBtn.textContent = '저장 중…';
+  statusEl.style.color = 'var(--accent)';
 
   try {
-    // 직렬화
+    statusEl.textContent = '데이터 직렬화 중…';
     const records = [];
     for (let i = 0; i < state.imgs.length; i++) {
-      btn.textContent = `직렬화 중… ${i+1}/${state.imgs.length}`;
+      statusEl.textContent = `직렬화 중… ${i+1}/${state.imgs.length}`;
       try { records.push(await _serializeRec(state.imgs[i])); } catch(e) { console.warn(e); }
       await new Promise(r => setTimeout(r, 0));
     }
 
     const payload = JSON.stringify({ version: 2, saved: new Date().toISOString(), records });
-    const filename = `보진재_작업_${new Date().toISOString().slice(0,10)}.bjj`;
-    const folder = cfg.folder ? cfg.folder.replace(/\/$/, '') + '/' : '';
-    const path = folder + filename;
-
-    // base64 인코딩 (한글 파일명/내용 안전하게)
+    const folderPath = folder ? folder.replace(/\/$/, '') + '/' : '';
+    const path = folderPath + filename;
     const b64 = btoa(unescape(encodeURIComponent(payload)));
 
-    btn.textContent = 'GitHub 업로드 중…';
+    statusEl.textContent = 'GitHub 업로드 중…';
     await ghPutFile(cfg, path, b64, `작업 저장: ${filename}`);
 
-    alert(`✓ GitHub에 저장 완료!\n${cfg.owner}/${cfg.repo}/${path}\n\n크기: ${(payload.length/1024/1024).toFixed(1)} MB`);
+    document.getElementById('ghSaveDialog').classList.add('hidden');
+    alert(`✓ 저장 완료!\n\n📁 ${cfg.owner}/${cfg.repo}/${path}\n💾 ${(payload.length/1024/1024).toFixed(1)} MB`);
   } catch(e) {
-    alert(`저장 실패: ${e.message}`);
+    statusEl.textContent = `오류: ${e.message}`;
+    statusEl.style.color = 'var(--err)';
   } finally {
-    btn.disabled = false; btn.textContent = '☁ 저장';
+    okBtn.disabled = false; okBtn.textContent = '저장';
   }
 }
 
-// ── GitHub에서 불러오기 ────────────────────────────────────────────────
+// ── GitHub 불러오기 다이얼로그 열기 ──────────────────────────────────
+let _ghSelectedFile = null;
+
 async function ghLoadWorkspace() {
   const cfg = ghLoadCfg();
   if (!ghCfgValid(cfg)) { alert('GitHub 설정이 필요합니다. ☁ GitHub 버튼을 클릭하세요.'); return; }
 
-  const btn = document.getElementById('btnGhLoad');
-  btn.disabled = true; btn.textContent = '목록 조회 중…';
+  _ghSelectedFile = null;
+  document.getElementById('ghLoadFolder').value = cfg.folder || '';
+  document.getElementById('ghLoadStatus').textContent = '';
+  document.getElementById('ghLoadDialog').classList.remove('hidden');
+  _ghRefreshFileList();
+}
+
+async function _ghRefreshFileList() {
+  const cfg = ghLoadCfg();
+  const folder = document.getElementById('ghLoadFolder').value.trim();
+  const listEl = document.getElementById('ghFileList');
+  const statusEl = document.getElementById('ghLoadStatus');
+  listEl.innerHTML = '<div class="gh-empty">목록 조회 중…</div>';
+  statusEl.textContent = '';
+  _ghSelectedFile = null;
 
   try {
-    const files = await ghListFiles(cfg);
-    if (!files.length) { alert('저장된 .bjj 파일이 없습니다.'); btn.disabled=false; btn.textContent='☁ 불러오기'; return; }
-
-    // 파일 선택 다이얼로그 (가장 최근 파일 기본 선택)
+    const searchCfg = { ...cfg, folder };
+    const files = await ghListFiles(searchCfg);
+    if (!files.length) {
+      listEl.innerHTML = '<div class="gh-empty">저장된 .bjj 파일이 없습니다</div>';
+      return;
+    }
     files.sort((a,b) => b.name.localeCompare(a.name));
-    const fileList = files.map((f,i) => `${i+1}. ${f.name}`).join('\n');
-    const choice = prompt(`불러올 파일 번호를 입력하세요:\n\n${fileList}`, '1');
-    if (!choice) { btn.disabled=false; btn.textContent='☁ 불러오기'; return; }
+    listEl.innerHTML = files.map(f => {
+      const kb = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
+      return `<div class="gh-file-item" data-path="${f.path}" data-name="${f.name}">
+        <span class="gh-file-item__icon">📄</span>
+        <span class="gh-file-item__name">${f.name}</span>
+        <span class="gh-file-item__size">${kb}</span>
+      </div>`;
+    }).join('');
+    // 첫 번째 항목 자동 선택
+    const first = listEl.querySelector('.gh-file-item');
+    if (first) { first.classList.add('is-sel'); _ghSelectedFile = { path: first.dataset.path, name: first.dataset.name }; }
+  } catch(e) {
+    listEl.innerHTML = `<div class="gh-empty" style="color:var(--err)">오류: ${e.message}</div>`;
+  }
+}
 
-    const idx = parseInt(choice) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= files.length) { alert('올바른 번호를 입력해주세요.'); btn.disabled=false; btn.textContent='☁ 불러오기'; return; }
+async function _ghDoLoad() {
+  if (!_ghSelectedFile) {
+    document.getElementById('ghLoadStatus').textContent = '파일을 선택해주세요.';
+    return;
+  }
+  const cfg = ghLoadCfg();
+  const statusEl = document.getElementById('ghLoadStatus');
+  const okBtn = document.getElementById('btnGhLoadDialogOk');
+  okBtn.disabled = true; okBtn.textContent = '불러오는 중…';
+  statusEl.style.color = 'var(--accent)';
 
-    const folder = cfg.folder ? cfg.folder.replace(/\/$/, '') + '/' : '';
-    btn.textContent = '다운로드 중…';
-    const text = await ghGetFile(cfg, folder + files[idx].name);
-
+  try {
+    statusEl.textContent = '다운로드 중…';
+    const text = await ghGetFile(cfg, _ghSelectedFile.path);
     let data;
-    try { data = JSON.parse(text); } catch { alert('파일을 파싱할 수 없습니다.'); btn.disabled=false; btn.textContent='☁ 불러오기'; return; }
-    if (!Array.isArray(data.records)) { alert('유효하지 않은 작업 파일입니다.'); btn.disabled=false; btn.textContent='☁ 불러오기'; return; }
+    try { data = JSON.parse(text); } catch { throw new Error('파일을 파싱할 수 없습니다'); }
+    if (!Array.isArray(data.records)) throw new Error('유효하지 않은 작업 파일입니다');
 
     state.imgs = []; state.curIdx = -1;
     for (let i = 0; i < data.records.length; i++) {
-      btn.textContent = `복원 중… ${i+1}/${data.records.length}`;
+      statusEl.textContent = `복원 중… ${i+1}/${data.records.length}`;
       try { state.imgs.push(await _deserializeRec(data.records[i])); } catch(e) { console.warn(e); }
       await new Promise(r => setTimeout(r, 0));
     }
 
+    document.getElementById('ghLoadDialog').classList.add('hidden');
     renderImgGrid(); renderFilmstrip(); updateBatchSummary();
     const ok = state.imgs.filter(r=>r.status==='measured').length;
-    alert(`✓ 불러오기 완료! 총 ${state.imgs.length}개 글자 (측정완료 ${ok}개)`);
+    alert(`✓ 불러오기 완료!\n\n📁 ${_ghSelectedFile.name}\n총 ${state.imgs.length}개 글자 (측정완료 ${ok}개)`);
   } catch(e) {
-    alert(`불러오기 실패: ${e.message}`);
+    statusEl.textContent = `오류: ${e.message}`;
+    statusEl.style.color = 'var(--err)';
   } finally {
-    btn.disabled = false; btn.textContent = '☁ 불러오기';
+    okBtn.disabled = false; okBtn.textContent = '불러오기';
   }
 }
 
@@ -2526,6 +2656,29 @@ document.getElementById('btnGhSaveCfg').addEventListener('click', () => {
 });
 document.getElementById('btnGhSave').addEventListener('click', ghSaveWorkspace);
 document.getElementById('btnGhLoad').addEventListener('click', ghLoadWorkspace);
+
+// 저장 다이얼로그
+document.getElementById('btnGhSaveDialogOk').addEventListener('click', _ghDoSave);
+document.getElementById('btnGhSaveDialogCancel').addEventListener('click', () => document.getElementById('ghSaveDialog').classList.add('hidden'));
+document.getElementById('ghSaveFilename').addEventListener('keydown', e => { if (e.key==='Enter') _ghDoSave(); });
+
+// 불러오기 다이얼로그
+document.getElementById('btnGhLoadDialogOk').addEventListener('click', _ghDoLoad);
+document.getElementById('btnGhLoadDialogCancel').addEventListener('click', () => document.getElementById('ghLoadDialog').classList.add('hidden'));
+document.getElementById('btnGhLoadRefresh').addEventListener('click', _ghRefreshFileList);
+document.getElementById('ghLoadFolder').addEventListener('keydown', e => { if (e.key==='Enter') _ghRefreshFileList(); });
+document.getElementById('ghFileList').addEventListener('click', e => {
+  const item = e.target.closest('.gh-file-item'); if (!item) return;
+  document.querySelectorAll('.gh-file-item').forEach(el => el.classList.remove('is-sel'));
+  item.classList.add('is-sel');
+  _ghSelectedFile = { path: item.dataset.path, name: item.dataset.name };
+});
+document.getElementById('ghFileList').addEventListener('dblclick', e => {
+  if (e.target.closest('.gh-file-item')) _ghDoLoad();
+});
+// 오버레이 클릭으로 닫기
+document.getElementById('ghSaveDialog').addEventListener('click', e => { if (e.target.id==='ghSaveDialog') document.getElementById('ghSaveDialog').classList.add('hidden'); });
+document.getElementById('ghLoadDialog').addEventListener('click', e => { if (e.target.id==='ghLoadDialog') document.getElementById('ghLoadDialog').classList.add('hidden'); });
 
 // 초기 상태 반영
 ghUpdateIndicator();
