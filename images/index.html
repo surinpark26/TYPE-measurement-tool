@@ -380,6 +380,37 @@ document.getElementById('uploadFileIn').addEventListener('change',async e=>{
   e.target.value='';
 });
 
+// 이미지 최적화: 1000×1000 이내로 리사이즈 + JPEG 압축
+function optimizeImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1000;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      // 1000px 초과 시 비율 유지하며 축소
+      if (w > MAX || h > MAX) {
+        const s = Math.min(MAX / w, MAX / h);
+        w = Math.round(w * s);
+        h = Math.round(h * s);
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      // JPEG quality 0.82 — 화질 유지하면서 용량 절감
+      c.toBlob(blob => {
+        if (!blob) { resolve(file); return; } // 실패 시 원본
+        // 파일명 확장자를 .jpg로 변경
+        const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        resolve(new File([blob], newName, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); }; // 실패 시 원본
+    img.src = url;
+  });
+}
+
 async function uploadFiles(files){
   const cfg=ghLoadCfg();
   if(!ghValid(cfg)){alert('GitHub 설정이 필요합니다.');openGhModal();return;}
@@ -389,11 +420,14 @@ async function uploadFiles(files){
   prog.classList.remove('hidden');
   let done=0;
   for(const f of files){
-    txt.textContent=`업로드 중… ${f.name} (${done+1}/${files.length})`;
+    txt.textContent=`최적화 중… ${f.name} (${done+1}/${files.length})`;
     fill.style.width=`${done/files.length*100}%`;
     try{
-      const buf=await f.arrayBuffer();
-      // 청크 단위 변환 — spread 연산자로 한 번에 넘기면 스택 초과
+      // 업로드 전 최적화
+      const optimized = await optimizeImage(f);
+      txt.textContent=`업로드 중… ${optimized.name} (${done+1}/${files.length}) → ${(optimized.size/1024).toFixed(0)}KB`;
+
+      const buf=await optimized.arrayBuffer();
       const bytes=new Uint8Array(buf);
       let binary='';
       const CHUNK=8192;
@@ -401,12 +435,11 @@ async function uploadFiles(files){
         binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+CHUNK));
       }
       const b64=btoa(binary);
-      const repoPath=`${fullPath(curPath)}/${f.name}`;
-      // SHA 확인 (덮어쓰기)
+      const repoPath=`${fullPath(curPath)}/${optimized.name}`;
       let sha=null;
       const existing=await ghApi(`/repos/${cfg.owner}/${cfg.imgRepo}/contents/${encodeURIComponent(repoPath).replace(/%2F/g,'/')}`);
       if(existing.ok){const d=await existing.json();sha=d.sha;}
-      const body={message:`이미지 업로드: ${f.name}`,content:b64};
+      const body={message:`이미지 업로드: ${optimized.name}`,content:b64};
       if(sha) body.sha=sha;
       const r=await ghApi(`/repos/${cfg.owner}/${cfg.imgRepo}/contents/${encodeURIComponent(repoPath).replace(/%2F/g,'/')}`,
         {method:'PUT',body:JSON.stringify(body)});
