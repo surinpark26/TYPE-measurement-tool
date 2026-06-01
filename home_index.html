@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>보진재 연구툴</title>
+<style>
+:root{
+  --bg:#f0efe9;--surface:#fff;--border:#dddad3;--border-lt:#ece9e3;
+  --text:#1a1a1a;--text-2:#555;--text-3:#999;
+  --accent:#2563eb;--accent-bg:#eff6ff;
+  --ok:#16a34a;--ok-bg:#f0fdf4;--ok-border:#bbf7d0;
+  --radius-sm:4px;--radius:6px;--radius-lg:12px;--nav-h:52px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+a{text-decoration:none;color:inherit;}
+
+/* NAV */
+.site-nav{height:var(--nav-h);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;}
+.site-nav__brand{font-size:13px;font-weight:800;color:var(--text);padding-right:20px;border-right:1px solid var(--border);margin-right:16px;}
+.site-nav__brand span{color:var(--accent);}
+.site-nav__links{display:flex;gap:2px;}
+.site-nav__link{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--radius);font-size:12px;font-weight:700;color:var(--text-3);transition:all .12s;}
+.site-nav__link:hover{background:var(--bg);color:var(--text);}
+.site-nav__link.is-active{background:var(--accent);color:#fff;}
+
+/* HERO */
+.hero{max-width:900px;margin:0 auto;padding:64px 24px 40px;}
+.hero__eyebrow{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
+.hero__title{font-size:36px;font-weight:800;line-height:1.2;letter-spacing:-.5px;margin-bottom:16px;}
+.hero__title em{color:var(--accent);font-style:normal;}
+.hero__desc{font-size:14px;color:var(--text-2);line-height:1.8;max-width:560px;}
+
+/* CARDS */
+.cards{max-width:900px;margin:0 auto;padding:0 24px 64px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
+.tool-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;}
+.tool-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.1);border-color:#bbb;transform:translateY(-1px);}
+.tool-card__accent{position:absolute;top:0;left:0;right:0;height:3px;}
+.tool-card__icon{font-size:28px;line-height:1;}
+.tool-card__title{font-size:16px;font-weight:800;letter-spacing:-.3px;}
+.tool-card__desc{font-size:12px;color:var(--text-2);line-height:1.7;flex:1;}
+.tool-card__link{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--accent);margin-top:4px;}
+.tool-card--tool .tool-card__accent{background:var(--accent);}
+.tool-card--data .tool-card__accent{background:var(--ok);}
+.tool-card--images .tool-card__accent{background:var(--warn, #d97706);}
+
+/* INFO */
+.info{max-width:900px;margin:0 auto;padding:0 24px 48px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.info-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+.info-card__title{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.info-card__val{font-size:20px;font-weight:800;color:var(--text);}
+.info-card__sub{font-size:11px;color:var(--text-3);margin-top:2px;}
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <a class="site-nav__brand" href="./"><span>보진재</span> 연구툴</a>
+  <div class="site-nav__links">
+    <a class="site-nav__link is-active" href="./">홈</a>
+    <a class="site-nav__link" href="./tool/">📐 측정툴</a>
+    <a class="site-nav__link" href="./data/">📊 데이터 뷰어</a>
+    <a class="site-nav__link" href="./images/">🖼 이미지 관리</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero__eyebrow">Bojinjae Myeongjo Typeface Research</div>
+  <h1 class="hero__title">최정호 보진재 명조체<br><em>구조의 질서</em> 연구툴</h1>
+  <p class="hero__desc">1960년대 최정호가 개발한 보진재 명조체의 낱글자 비례·균형을 측정하고 분석하는 연구 도구입니다. 가로·세로·섞임 모임꼴 낱글자의 첫닿자·홀자·받침닿자 비율과 시각 무게중심을 수치로 기록합니다.</p>
+</section>
+
+<section class="cards">
+  <a class="tool-card tool-card--tool" href="./tool/">
+    <div class="tool-card__accent"></div>
+    <div class="tool-card__icon">📐</div>
+    <div class="tool-card__title">측정툴</div>
+    <div class="tool-card__desc">낱글자 이미지를 불러와 첫닿자·홀자·받침닿자 영역을 지정하고, 물리적 비례와 시각 균형점을 자동 측정합니다.</div>
+    <span class="tool-card__link">열기 →</span>
+  </a>
+  <a class="tool-card tool-card--data" href="./data/">
+    <div class="tool-card__accent"></div>
+    <div class="tool-card__icon">📊</div>
+    <div class="tool-card__title">데이터 뷰어</div>
+    <div class="tool-card__desc">측정 완료된 CSV/XLSX 데이터를 불러와 표·그래프로 시각화하고, 모임꼴별·낱자별 비례 수치를 비교합니다.</div>
+    <span class="tool-card__link">열기 →</span>
+  </a>
+  <a class="tool-card tool-card--images" href="./images/">
+    <div class="tool-card__accent"></div>
+    <div class="tool-card__icon">🖼</div>
+    <div class="tool-card__title">이미지 관리</div>
+    <div class="tool-card__desc">GitHub 레포에 저장된 측정용 낱글자 이미지를 폴더별로 탐색·업로드·삭제하고, 클릭 한 번으로 측정툴에 연결합니다.</div>
+    <span class="tool-card__link">열기 →</span>
+  </a>
+</section>
+
+<section class="info">
+  <div class="info-card">
+    <div class="info-card__title">연구 대상</div>
+    <div class="info-card__val">보진재 명조체</div>
+    <div class="info-card__sub">최정호 · 1960년대</div>
+  </div>
+  <div class="info-card">
+    <div class="info-card__title">분석 체계</div>
+    <div class="info-card__val">비례 · 균형</div>
+    <div class="info-card__sub">mm 수치 · 100×100 Gu 좌표</div>
+  </div>
+  <div class="info-card">
+    <div class="info-card__title">모임꼴 분류</div>
+    <div class="info-card__val">3종</div>
+    <div class="info-card__sub">가로 · 세로 · 섞임 모임꼴</div>
+  </div>
+  <div class="info-card">
+    <div class="info-card__title">논문</div>
+    <div class="info-card__val">홍익대학교</div>
+    <div class="info-card__sub">시각디자인학과 석사 · 박수린</div>
+  </div>
+</section>
+
+</body>
+</html>

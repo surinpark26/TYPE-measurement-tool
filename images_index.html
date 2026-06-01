@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이미지 관리 — 보진재 연구툴</title>
+<style>
+:root{
+  --bg:#f0efe9;--surface:#fff;--border:#dddad3;--border-lt:#ece9e3;
+  --text:#1a1a1a;--text-2:#555;--text-3:#999;
+  --accent:#2563eb;--accent-bg:#eff6ff;
+  --ok:#16a34a;--ok-bg:#f0fdf4;--ok-border:#bbf7d0;
+  --warn:#d97706;--warn-bg:#fffbeb;
+  --err:#dc2626;--err-bg:#fef2f2;
+  --radius-sm:4px;--radius:6px;--radius-lg:12px;--nav-h:48px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+a{text-decoration:none;color:inherit;}
+button{cursor:pointer;font-family:inherit;}
+input,select{font-family:inherit;}
+.hidden{display:none!important;}
+
+/* NAV */
+.site-nav{height:var(--nav-h);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:0;flex-shrink:0;}
+.site-nav__brand{font-size:12px;font-weight:800;padding-right:16px;border-right:1px solid var(--border);margin-right:12px;white-space:nowrap;}
+.site-nav__brand span{color:var(--accent);}
+.site-nav__links{display:flex;gap:2px;flex:1;}
+.site-nav__link{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:var(--radius);font-size:11px;font-weight:700;color:var(--text-3);transition:all .12s;}
+.site-nav__link:hover{background:var(--bg);color:var(--text);}
+.site-nav__link.is-active{background:var(--warn);color:#fff;}
+.site-nav__right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.gh-cfg-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;border:1px solid var(--border);cursor:pointer;white-space:nowrap;}
+.gh-cfg-btn--on{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-border);}
+.gh-cfg-btn--off{background:var(--bg);color:var(--text-3);}
+.btn{padding:5px 11px;border:none;border-radius:var(--radius);font-size:11px;font-weight:700;cursor:pointer;transition:filter .12s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;}
+.btn:hover{filter:brightness(1.1);}
+.btn--ghost{background:var(--bg);color:var(--text);border:1px solid var(--border);}
+.btn--ok{background:var(--ok);color:#fff;}
+.btn--accent{background:var(--accent);color:#fff;}
+.btn--err{background:var(--err);color:#fff;}
+.btn--warn{background:var(--warn);color:#fff;}
+.btn--sm{padding:3px 8px;font-size:10px;}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.path-bar{display:flex;align-items:center;gap:4px;flex:1;min-width:0;}
+.path-seg{font-size:11px;font-weight:700;color:var(--accent);cursor:pointer;padding:2px 4px;border-radius:3px;}
+.path-seg:hover{background:var(--accent-bg);}
+.path-sep{font-size:11px;color:var(--text-3);}
+.status-bar{font-size:11px;color:var(--text-3);}
+
+/* MAIN */
+.main{flex:1;display:flex;overflow:hidden;min-height:0;}
+
+/* SIDEBAR — 폴더 트리 */
+.sidebar{width:200px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--surface);}
+.sidebar__head{padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-3);border-bottom:1px solid var(--border-lt);display:flex;align-items:center;justify-content:space-between;}
+.sidebar__list{flex:1;overflow-y:auto;padding:4px;}
+.folder-item{display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:11px;font-weight:700;color:var(--text-2);transition:background .1s;}
+.folder-item:hover{background:var(--bg);}
+.folder-item.is-active{background:var(--accent-bg);color:var(--accent);}
+.folder-item__icon{font-size:13px;flex-shrink:0;}
+
+/* IMAGE GRID */
+.img-area{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.img-grid{flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;align-content:start;}
+.img-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .12s;position:relative;}
+.img-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.12);border-color:#bbb;transform:translateY(-1px);}
+.img-card__thumb{width:100%;aspect-ratio:1;object-fit:contain;background:var(--bg);display:block;}
+.img-card__thumb--blank{background:var(--border-lt);display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:11px;}
+.img-card__body{padding:5px 7px 7px;}
+.img-card__name{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.img-card__meta{font-size:9px;color:var(--text-3);margin-top:1px;}
+.img-card__del{position:absolute;top:4px;left:4px;width:20px;height:20px;background:rgba(220,38,38,.85);color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;z-index:2;}
+.img-card:hover .img-card__del{opacity:1;}
+.img-card__open{position:absolute;top:4px;right:4px;width:20px;height:20px;background:rgba(37,99,235,.85);color:#fff;border:none;border-radius:4px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;z-index:2;}
+.img-card:hover .img-card__open{opacity:1;}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--text-3);}
+.empty__icon{font-size:40px;} .empty__text{font-size:13px;font-weight:700;} .empty__sub{font-size:11px;}
+
+/* DROP OVERLAY */
+.drop-overlay{position:absolute;inset:0;background:rgba(37,99,235,.08);border:3px dashed var(--accent);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--accent);pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;}
+.img-area{position:relative;}
+.img-area.is-drag .drop-overlay{opacity:1;}
+
+/* IMAGE PREVIEW MODAL */
+.img-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.img-modal{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);padding:16px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.3);}
+.img-modal__top{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.img-modal__name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.img-modal img{max-width:70vw;max-height:65vh;object-fit:contain;border-radius:var(--radius);display:block;}
+
+/* GITHUB MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;display:flex;align-items:center;justify-content:center;}
+.modal{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);padding:22px 24px;width:440px;max-width:95vw;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);}
+.modal h2{font-size:14px;font-weight:700;}
+.modal label{font-size:11px;font-weight:700;color:var(--text-3);display:block;margin-bottom:3px;}
+.modal input{width:100%;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:#f7f5f0;color:var(--text);}
+.modal__row{display:flex;gap:8px;}
+.modal__status{font-size:11px;min-height:16px;}
+.status--ok{color:var(--ok);} .status--err{color:var(--err);} .status--info{color:var(--accent);}
+
+/* UPLOAD PROGRESS */
+.upload-progress{padding:8px 14px;background:var(--ok-bg);border-top:1px solid var(--ok-border);font-size:11px;color:var(--ok);display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.progress-bar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-bar__fill{height:100%;background:var(--ok);border-radius:3px;transition:width .3s;}
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <a class="site-nav__brand" href="../"><span>보진재</span> 연구툴</a>
+  <div class="site-nav__links">
+    <a class="site-nav__link" href="../tool/">📐 측정툴</a>
+    <a class="site-nav__link" href="../data/">📊 데이터 뷰어</a>
+    <a class="site-nav__link is-active" href="../images/">🖼 이미지 관리</a>
+  </div>
+  <div class="site-nav__right">
+    <button class="btn btn--accent btn--sm" id="btnUpload">+ 이미지 업로드</button>
+    <button class="btn btn--ghost btn--sm" id="btnNewFolder">📁 폴더 추가</button>
+    <span class="gh-cfg-btn gh-cfg-btn--off" id="ghCfgBtn" onclick="openGhModal()">☁ GitHub 설정</span>
+    <input type="file" id="uploadFileIn" multiple accept="image/*" style="display:none">
+  </div>
+</nav>
+
+<div class="toolbar">
+  <div class="path-bar" id="pathBar">
+    <span class="path-seg" data-path="">🏠 루트</span>
+  </div>
+  <button class="btn btn--ghost btn--sm" id="btnRefresh">🔄 새로고침</button>
+  <span class="status-bar" id="statusBar">—</span>
+</div>
+
+<div class="main">
+  <!-- 폴더 트리 -->
+  <div class="sidebar">
+    <div class="sidebar__head">
+      <span>폴더</span>
+    </div>
+    <div class="sidebar__list" id="folderList">
+      <div class="folder-item is-active" data-path="">
+        <span class="folder-item__icon">🏠</span>루트
+      </div>
+    </div>
+  </div>
+
+  <!-- 이미지 영역 -->
+  <div class="img-area" id="imgArea">
+    <div class="drop-overlay">이미지를 드롭해서 업로드</div>
+    <div class="img-grid" id="imgGrid">
+      <div class="empty">
+        <div class="empty__icon">🖼</div>
+        <div class="empty__text">GitHub 설정 후 불러오기</div>
+        <div class="empty__sub">우상단 ☁ GitHub 설정을 먼저 완료해주세요</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="upload-progress hidden" id="uploadProgress">
+  <span id="uploadText">업로드 중…</span>
+  <div class="progress-bar"><div class="progress-bar__fill" id="uploadFill" style="width:0%"></div></div>
+</div>
+
+<!-- GitHub 설정 모달 -->
+<div class="modal-overlay hidden" id="ghModal">
+  <div class="modal">
+    <h2>☁ GitHub 연동 설정</h2>
+    <div><label>Personal Access Token</label><input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off"></div>
+    <div class="modal__row">
+      <div style="flex:1"><label>Owner</label><input type="text" id="ghOwner" placeholder="surinpark26"></div>
+      <div style="flex:1"><label>이미지 레포</label><input type="text" id="ghImgRepo" placeholder="bojinjae"></div>
+    </div>
+    <div><label>이미지 루트 폴더</label><input type="text" id="ghImgRoot" placeholder="images"></div>
+    <div class="modal__status" id="ghModalStatus"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn--ghost btn--sm" onclick="ghTest()">연결 테스트</button>
+      <button class="btn btn--ok btn--sm" onclick="ghSaveCfg()">저장</button>
+      <button class="btn btn--ghost btn--sm" onclick="closeGhModal()">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 이미지 미리보기 모달 -->
+<div class="img-modal-overlay hidden" id="imgPreviewModal">
+  <div class="img-modal">
+    <div class="img-modal__top">
+      <span class="img-modal__name" id="previewName">—</span>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn--accent btn--sm" id="btnOpenInTool">📐 측정툴에서 열기</button>
+        <button class="btn btn--ghost btn--sm" onclick="closePreview()">✕ 닫기</button>
+      </div>
+    </div>
+    <img id="previewImg" src="" alt="">
+    <div style="font-size:11px;color:var(--text-3);" id="previewMeta">—</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── GitHub 설정 ──────────────────────────────────────────────
+const GH_KEY='bonjinjae_gh_cfg';
+function ghLoadCfg(){try{return JSON.parse(localStorage.getItem(GH_KEY))||{};}catch{return{};}}
+function ghValid(cfg){return cfg.token&&cfg.owner&&cfg.imgRepo;}
+
+function openGhModal(){
+  const cfg=ghLoadCfg();
+  document.getElementById('ghToken').value=cfg.token||'';
+  document.getElementById('ghOwner').value=cfg.owner||'';
+  document.getElementById('ghImgRepo').value=cfg.imgRepo||'bojinjae';
+  document.getElementById('ghImgRoot').value=cfg.imgRoot||'images';
+  document.getElementById('ghModalStatus').textContent='';
+  document.getElementById('ghModal').classList.remove('hidden');
+}
+function closeGhModal(){document.getElementById('ghModal').classList.add('hidden');}
+document.getElementById('ghModal').addEventListener('click',e=>{if(e.target.id==='ghModal')closeGhModal();});
+
+function ghSetStatus(msg,type='info'){
+  const el=document.getElementById('ghModalStatus');
+  el.textContent=msg;el.className='modal__status status--'+type;
+}
+async function ghTest(){
+  const cfg={token:document.getElementById('ghToken').value.trim(),owner:document.getElementById('ghOwner').value.trim(),imgRepo:document.getElementById('ghImgRepo').value.trim()};
+  if(!cfg.token||!cfg.owner||!cfg.imgRepo){ghSetStatus('필수 항목 입력 필요','err');return;}
+  ghSetStatus('확인 중…','info');
+  try{
+    const r=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.imgRepo}`,{headers:{Authorization:`Bearer ${cfg.token}`,Accept:'application/vnd.github+json'}});
+    if(r.ok)ghSetStatus('✓ 연결 성공!','ok');
+    else{const e=await r.json();ghSetStatus('오류: '+e.message,'err');}
+  }catch(e){ghSetStatus('오류: '+e.message,'err');}
+}
+function ghSaveCfg(){
+  const cfg={token:document.getElementById('ghToken').value.trim(),owner:document.getElementById('ghOwner').value.trim(),imgRepo:document.getElementById('ghImgRepo').value.trim(),imgRoot:document.getElementById('ghImgRoot').value.trim()||'images'};
+  if(!cfg.token||!cfg.owner||!cfg.imgRepo){ghSetStatus('필수 항목 입력 필요','err');return;}
+  // 기존 설정과 머지 (dataRepo 등 유지)
+  const prev=ghLoadCfg();
+  localStorage.setItem(GH_KEY,JSON.stringify({...prev,...cfg}));
+  updateGhBtn();closeGhModal();
+  loadCurrentFolder();
+}
+function updateGhBtn(){
+  const cfg=ghLoadCfg();const btn=document.getElementById('ghCfgBtn');
+  if(ghValid(cfg)){btn.textContent=`☁ ${cfg.owner}/${cfg.imgRepo}`;btn.className='gh-cfg-btn gh-cfg-btn--on';}
+  else{btn.textContent='☁ GitHub 설정';btn.className='gh-cfg-btn gh-cfg-btn--off';}
+}
+updateGhBtn();
+
+// ── 상태 ─────────────────────────────────────────────────────
+let curPath='';  // 현재 폴더 (imgRoot 기준 상대경로)
+let curItems=[]; // 현재 폴더 아이템
+let previewItem=null;
+
+function fullPath(rel){
+  const cfg=ghLoadCfg();
+  const root=cfg.imgRoot||'images';
+  return rel?`${root}/${rel}`:root;
+}
+
+// ── API 헬퍼 ─────────────────────────────────────────────────
+async function ghApi(path,opts={}){
+  const cfg=ghLoadCfg();
+  return fetch(`https://api.github.com${path}`,{
+    ...opts,
+    headers:{Authorization:`Bearer ${cfg.token}`,Accept:'application/vnd.github+json','Content-Type':'application/json',...(opts.headers||{})}
+  });
+}
+
+async function listDir(repoPath){
+  const cfg=ghLoadCfg();
+  const r=await ghApi(`/repos/${cfg.owner}/${cfg.imgRepo}/contents/${encodeURIComponent(repoPath).replace(/%2F/g,'/')}`);
+  if(!r.ok){if(r.status===404)return[];const e=await r.json();throw new Error(e.message);}
+  const items=await r.json();
+  return Array.isArray(items)?items:[];
+}
+
+// ── 폴더 트리 ────────────────────────────────────────────────
+async function loadFolderTree(){
+  const cfg=ghLoadCfg();if(!ghValid(cfg))return;
+  try{
+    const items=await listDir(fullPath(''));
+    const folders=items.filter(i=>i.type==='dir');
+    const el=document.getElementById('folderList');
+    el.innerHTML=`<div class="folder-item${curPath===''?' is-active':''}" data-path="">
+      <span class="folder-item__icon">🏠</span>루트
+    </div>` + folders.map(f=>`
+      <div class="folder-item${curPath===f.name?' is-active':''}" data-path="${f.name}">
+        <span class="folder-item__icon">📁</span>${f.name}
+      </div>`).join('');
+  }catch(e){console.warn('폴더 트리 로드 실패:',e);}
+}
+
+document.getElementById('folderList').addEventListener('click',e=>{
+  const item=e.target.closest('[data-path]');if(!item)return;
+  curPath=item.dataset.path;
+  updatePathBar();
+  loadCurrentFolder();
+  document.querySelectorAll('.folder-item').forEach(el=>el.classList.toggle('is-active',el.dataset.path===curPath));
+});
+
+function updatePathBar(){
+  const cfg=ghLoadCfg();
+  const root=cfg.imgRoot||'images';
+  let html=`<span class="path-seg" data-path="">🏠 ${root}</span>`;
+  if(curPath){
+    html+=`<span class="path-sep">/</span><span class="path-seg" data-path="${curPath}">${curPath}</span>`;
+  }
+  document.getElementById('pathBar').innerHTML=html;
+}
+
+document.getElementById('pathBar').addEventListener('click',e=>{
+  const seg=e.target.closest('[data-path]');if(!seg)return;
+  curPath=seg.dataset.path;
+  updatePathBar();
+  loadCurrentFolder();
+  document.querySelectorAll('.folder-item').forEach(el=>el.classList.toggle('is-active',el.dataset.path===curPath));
+});
+
+// ── 현재 폴더 로드 ───────────────────────────────────────────
+async function loadCurrentFolder(){
+  const cfg=ghLoadCfg();
+  if(!ghValid(cfg)){
+    document.getElementById('imgGrid').innerHTML='<div class="empty"><div class="empty__icon">🖼</div><div class="empty__text">GitHub 설정 필요</div><div class="empty__sub">우상단 ☁ GitHub 설정을 먼저 완료해주세요</div></div>';
+    return;
+  }
+  const grid=document.getElementById('imgGrid');
+  grid.innerHTML='<div class="empty"><div class="empty__icon">⏳</div><div class="empty__text">불러오는 중…</div></div>';
+  document.getElementById('statusBar').textContent='조회 중…';
+  try{
+    const items=await listDir(fullPath(curPath));
+    curItems=items;
+    const imgExts=['jpg','jpeg','png','gif','webp','bmp','tiff'];
+    const imgs=items.filter(i=>i.type==='file'&&imgExts.some(ext=>i.name.toLowerCase().endsWith('.'+ext)));
+    const dirs=items.filter(i=>i.type==='dir');
+    document.getElementById('statusBar').textContent=`폴더 ${dirs.length}개 · 이미지 ${imgs.length}개`;
+
+    if(!imgs.length&&!dirs.length){
+      grid.innerHTML='<div class="empty"><div class="empty__icon">📂</div><div class="empty__text">비어있음</div><div class="empty__sub">이미지를 업로드해주세요</div></div>';
+      return;
+    }
+    grid.innerHTML=
+      dirs.map(d=>`
+        <div class="img-card" data-dir="${d.name}" style="cursor:pointer;" onclick="enterFolder('${d.name}')">
+          <div class="img-card__thumb img-card__thumb--blank" style="font-size:32px;">📁</div>
+          <div class="img-card__body">
+            <div class="img-card__name">${d.name}</div>
+            <div class="img-card__meta">폴더</div>
+          </div>
+        </div>`).join('') +
+      imgs.map(img=>`
+        <div class="img-card" data-path="${img.path}" data-name="${img.name}" data-url="${img.download_url||''}">
+          <img class="img-card__thumb" src="${img.download_url||''}" loading="lazy" onerror="this.style.display='none'">
+          <button class="img-card__del" onclick="deleteImg(event,'${img.path}','${img.sha}','${img.name}')">✕</button>
+          <button class="img-card__open" title="측정툴에서 열기" onclick="openInTool(event,'${img.download_url||''}','${img.name}')">📐</button>
+          <div class="img-card__body">
+            <div class="img-card__name">${img.name}</div>
+            <div class="img-card__meta">${img.size?(img.size/1024).toFixed(0)+' KB':''}</div>
+          </div>
+        </div>`).join('');
+  }catch(e){
+    grid.innerHTML=`<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__text">불러오기 실패</div><div class="empty__sub">${e.message}</div></div>`;
+    document.getElementById('statusBar').textContent='오류: '+e.message;
+  }
+  loadFolderTree();
+}
+
+function enterFolder(name){
+  curPath=curPath?`${curPath}/${name}`:name;
+  updatePathBar();
+  loadCurrentFolder();
+}
+
+// ── 이미지 업로드 ────────────────────────────────────────────
+document.getElementById('btnUpload').addEventListener('click',()=>document.getElementById('uploadFileIn').click());
+document.getElementById('uploadFileIn').addEventListener('change',async e=>{
+  if(!e.target.files.length)return;
+  await uploadFiles([...e.target.files]);
+  e.target.value='';
+});
+
+async function uploadFiles(files){
+  const cfg=ghLoadCfg();
+  if(!ghValid(cfg)){alert('GitHub 설정이 필요합니다.');openGhModal();return;}
+  const prog=document.getElementById('uploadProgress');
+  const fill=document.getElementById('uploadFill');
+  const txt=document.getElementById('uploadText');
+  prog.classList.remove('hidden');
+  let done=0;
+  for(const f of files){
+    txt.textContent=`업로드 중… ${f.name} (${done+1}/${files.length})`;
+    fill.style.width=`${done/files.length*100}%`;
+    try{
+      const buf=await f.arrayBuffer();
+      const b64=btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const repoPath=`${fullPath(curPath)}/${f.name}`;
+      // SHA 확인 (덮어쓰기)
+      let sha=null;
+      const existing=await ghApi(`/repos/${cfg.owner}/${cfg.imgRepo}/contents/${encodeURIComponent(repoPath).replace(/%2F/g,'/')}`);
+      if(existing.ok){const d=await existing.json();sha=d.sha;}
+      const body={message:`이미지 업로드: ${f.name}`,content:b64};
+      if(sha) body.sha=sha;
+      const r=await ghApi(`/repos/${cfg.owner}/${cfg.imgRepo}/contents/${encodeURIComponent(repoPath).replace(/%2F/g,'/')}`,
+        {method:'PUT',body:JSON.stringify(body)});
+      if(!r.ok){const e=await r.json();throw new Error(e.message);}
+    }catch(e){alert(`업로드 실패 (${f.name}): ${e.message}`);}
+    done++;
+  }
+  fill.style.width='100%';
+  txt.textContent=`업로드 완료 (${done}개)`;
+  setTimeout(()=>prog.classList.add('hidden'),2000);
+  loadCurrentFolder();
+}
+
+// ── 드래그앤드롭 ─────────────────────────────────────────────
+const imgArea=document.getElementById('imgArea');
+imgArea.addEventListener('dragover',e=>{e.preventDefault();imgArea.classList.add('is-drag');});
+imgArea.addEventListener('dragleave',e=>{if(!imgArea.contains(e.relatedTarget))imgArea.classList.remove('is-drag');});
+imgArea.addEventListener('drop',async e=>{
+  e.preventDefault();imgArea.classList.remove('is-drag');
+  const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));
+  if(files.length) await uploadFiles(files);
+});
+
+// ── 이미지 삭제 ──────────────────────────────────────────────
+async function deleteImg(e,path,sha,name){
+  e.stopPropagation();
+  if(!confirm(`"${name}"을 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))return;
+  const cfg=ghLoadCfg();
+  document.getElementById('statusBar').textContent='삭제 중…';
+  try{
+    const r=await ghApi(`/repos/${cfg.owner}/${cfg.imgRepo}/contents/${encodeURIComponent(path).replace(/%2F/g,'/')}`,
+      {method:'DELETE',body:JSON.stringify({message:`이미지 삭제: ${name}`,sha})});
+    if(!r.ok){const er=await r.json();throw new Error(er.message);}
+    loadCurrentFolder();
+  }catch(er){alert('삭제 실패: '+er.message);document.getElementById('statusBar').textContent='삭제 실패';}
+}
+
+// ── 폴더 추가 ────────────────────────────────────────────────
+document.getElementById('btnNewFolder').addEventListener('click',async()=>{
+  const cfg=ghLoadCfg();
+  if(!ghValid(cfg)){alert('GitHub 설정이 필요합니다.');openGhModal();return;}
+  const name=prompt('새 폴더 이름 입력:\n(예: 가로모임꼴, 세로모임꼴_민글자)');
+  if(!name||!name.trim())return;
+  // GitHub는 빈 폴더 불가 → .gitkeep 파일 생성
+  const path=`${fullPath(curPath)}/${name.trim()}/.gitkeep`;
+  try{
+    const b64=btoa('');
+    const r=await ghApi(`/repos/${cfg.owner}/${cfg.imgRepo}/contents/${encodeURIComponent(path).replace(/%2F/g,'/')}`,
+      {method:'PUT',body:JSON.stringify({message:`폴더 생성: ${name}`,content:b64})});
+    if(!r.ok){const e=await r.json();throw new Error(e.message);}
+    loadCurrentFolder();
+  }catch(e){alert('폴더 생성 실패: '+e.message);}
+});
+
+// ── 이미지 미리보기 ──────────────────────────────────────────
+document.getElementById('imgGrid').addEventListener('click',e=>{
+  const card=e.target.closest('.img-card[data-path]');
+  if(!card||e.target.closest('button'))return;
+  const url=card.dataset.url;
+  const name=card.dataset.name;
+  if(!url)return;
+  showPreview(url,name,card.dataset.path);
+});
+
+function showPreview(url,name,path){
+  previewItem={url,name,path};
+  document.getElementById('previewName').textContent=name;
+  document.getElementById('previewImg').src=url;
+  document.getElementById('previewMeta').textContent=path;
+  document.getElementById('imgPreviewModal').classList.remove('hidden');
+}
+function closePreview(){document.getElementById('imgPreviewModal').classList.add('hidden');previewItem=null;}
+document.getElementById('imgPreviewModal').addEventListener('click',e=>{if(e.target.id==='imgPreviewModal')closePreview();});
+
+// ── 측정툴에서 열기 ──────────────────────────────────────────
+function openInTool(e,url,name){
+  if(e)e.stopPropagation();
+  if(!url){alert('이미지 URL을 불러올 수 없습니다.');return;}
+  // sessionStorage에 이미지 URL 저장 → 측정툴에서 읽어서 자동 로드
+  sessionStorage.setItem('bonjinjae_open_img',JSON.stringify({url,name,ts:Date.now()}));
+  window.open('../tool/','_blank');
+}
+document.getElementById('btnOpenInTool').addEventListener('click',()=>{
+  if(!previewItem)return;
+  openInTool(null,previewItem.url,previewItem.name);
+  closePreview();
+});
+
+// ── 새로고침 ─────────────────────────────────────────────────
+document.getElementById('btnRefresh').addEventListener('click',loadCurrentFolder);
+
+// ── 초기 로드 ────────────────────────────────────────────────
+const cfg=ghLoadCfg();
+if(ghValid(cfg)) loadCurrentFolder();
+updatePathBar();
+</script>
+</body>
+</html>
