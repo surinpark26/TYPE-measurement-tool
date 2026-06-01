@@ -1410,17 +1410,26 @@ function loadAndOptimize(dataURL, cb) {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     c.getContext('2d').drawImage(src, 0, 0, w, h);
-    const tryWebP = () => new Promise(res => c.toBlob(b => res(b), 'image/webp', 0.85));
-    const tryJPEG = () => new Promise(res => c.toBlob(b => res(b), 'image/jpeg', 0.85));
-    tryWebP().then(blob => {
-      if (!blob || blob.type !== 'image/webp') return tryJPEG();
-      return blob;
-    }).then(blob => {
+    // JPEG로 직접 변환 (WebP는 Safari 구버전 미지원 + blob null 케이스 방지)
+    c.toBlob(blob => {
+      if (!blob) {
+        // toBlob 실패 시 dataURL fallback
+        const fallbackImg = new Image();
+        fallbackImg.onload = () => cb(fallbackImg);
+        fallbackImg.src = c.toDataURL('image/jpeg', 0.85);
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const img = new Image();
       img.onload = () => cb(img);
+      img.onerror = () => {
+        // blob URL 실패 시 dataURL fallback
+        const fallbackImg = new Image();
+        fallbackImg.onload = () => cb(fallbackImg);
+        fallbackImg.src = c.toDataURL('image/jpeg', 0.85);
+      };
       img.src = url;
-    });
+    }, 'image/jpeg', 0.85);
   };
   src.src = dataURL;
 }
@@ -2400,7 +2409,9 @@ document.getElementById('btnMeasureAll').addEventListener('click', async () => {
 });
 
 document.getElementById('btnSaveWS').addEventListener('click', saveWorkspace);
-document.getElementById('btnLoadWS').addEventListener('click', loadWorkspace);
+document.getElementById('btnLoadWS').addEventListener('click', () => {
+  document.getElementById('wsFileIn').click();
+});
 
 document.getElementById('btnDlBatch').addEventListener('click', () => dlAll('csv'));
 document.getElementById('btnDlBatchXLSX').addEventListener('click', () => dlAll('xlsx'));
