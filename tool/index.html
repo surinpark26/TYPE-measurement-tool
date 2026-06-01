@@ -3104,8 +3104,13 @@ async function _ghDoSave() {
     statusEl.textContent = 'GitHub 업로드 중…';
     await ghPutFile(cfg, path, b64, `작업 저장: ${filename}`);
 
+    // bjj 저장 후 CSV 자동 누적 저장
+    statusEl.textContent = 'CSV 데이터 저장 중…';
+    const csvCount = await ghAutoSaveCSV();
+    const csvMsg = csvCount ? `\n📊 bojinjae_data.csv 업데이트 (${csvCount}행)` : '';
+
     document.getElementById('ghSaveDialog').classList.add('hidden');
-    alert(`✓ 저장 완료!\n\n📁 ${cfg.owner}/${cfg.repo}/${path}\n💾 ${(payload.length/1024/1024).toFixed(1)} MB`);
+    alert(`✓ 저장 완료!\n\n📁 ${cfg.owner}/${cfg.repo}/${path}\n💾 ${(payload.length/1024/1024).toFixed(1)} MB${csvMsg}`);
   } catch(e) {
     statusEl.textContent = `오류: ${e.message}`;
     statusEl.style.color = 'var(--err)';
