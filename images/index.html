@@ -392,7 +392,14 @@ async function uploadFiles(files){
     fill.style.width=`${done/files.length*100}%`;
     try{
       const buf=await f.arrayBuffer();
-      const b64=btoa(String.fromCharCode(...new Uint8Array(buf)));
+      // 청크 단위 변환 — spread 연산자로 한 번에 넘기면 스택 초과
+      const bytes=new Uint8Array(buf);
+      let binary='';
+      const CHUNK=8192;
+      for(let i=0;i<bytes.length;i+=CHUNK){
+        binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+CHUNK));
+      }
+      const b64=btoa(binary);
       const repoPath=`${fullPath(curPath)}/${f.name}`;
       // SHA 확인 (덮어쓰기)
       let sha=null;
