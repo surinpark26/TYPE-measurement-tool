@@ -1988,6 +1988,7 @@ function renderImgGrid() {
       ${thumbSrc?`<img class="batch-card__thumb" src="${thumbSrc}" loading="lazy">`:`<div class="batch-card__thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:11px">로딩중</div>`}
       <div class="batch-card__badge ${badgeCls}"></div>
       <button class="batch-card__del" data-del="${i}" title="삭제">✕</button>
+      <input type="checkbox" class="batch-card__chk" data-chk="${i}" style="position:absolute;top:4px;right:4px;width:15px;height:15px;cursor:pointer;z-index:2;accent-color:var(--accent);" onclick="event.stopPropagation()">
       <div class="batch-card__body">
         <div class="batch-card__name">${rec.charName||'?'}</div>
         <div class="batch-card__meta">${MN[rec.moiming]}${rec.hasBatchim?' 받침':''}</div>
@@ -1995,6 +1996,7 @@ function renderImgGrid() {
       </div>
     </div>`;
   }).join('');
+  if (typeof updateSelUI === 'function') updateSelUI();
 }
 
 function renderFilmstrip() {
