@@ -2479,6 +2479,71 @@ document.getElementById('btnDlCur').addEventListener('click', () => dlCur('csv')
 document.getElementById('btnDlCurXLSX').addEventListener('click', () => dlCur('xlsx'));
 document.getElementById('btnSaveRec').addEventListener('click', saveRec);
 
+/* ── 이미지 전체선택 관리 ────────────────────────────────── */
+const selSet = new Set();
+
+function updateSelUI() {
+  const n = selSet.size, total = state.imgs.length;
+  const chkAll = document.getElementById('chkSelectAll');
+  const btnDel = document.getElementById('btnDeleteSel');
+  const badge  = document.getElementById('selCountBadge');
+  if (chkAll) { chkAll.checked = n > 0 && n === total; chkAll.indeterminate = n > 0 && n < total; }
+  if (btnDel) btnDel.style.display = n > 0 ? '' : 'none';
+  if (badge)  badge.textContent = n > 0 ? n + '개 선택됨' : '';
+  document.querySelectorAll('.batch-card__chk').forEach(chk => {
+    chk.checked = selSet.has(parseInt(chk.dataset.chk));
+  });
+}
+
+document.getElementById('imgGrid').addEventListener('change', e => {
+  const chk = e.target.closest('.batch-card__chk'); if (!chk) return;
+  const idx = parseInt(chk.dataset.chk);
+  if (chk.checked) selSet.add(idx); else selSet.delete(idx);
+  updateSelUI();
+});
+
+document.getElementById('chkSelectAll').addEventListener('change', e => {
+  selSet.clear();
+  if (e.target.checked) state.imgs.forEach((_, i) => selSet.add(i));
+  updateSelUI();
+});
+
+document.getElementById('btnDeleteSel').addEventListener('click', () => {
+  if (!selSet.size) return;
+  if (!confirm('선택된 ' + selSet.size + '개 이미지를 삭제할까요?')) return;
+  [...selSet].sort((a,b)=>b-a).forEach(i => state.imgs.splice(i,1));
+  if (state.curIdx >= state.imgs.length) state.curIdx = state.imgs.length-1;
+  selSet.clear();
+  renderImgGrid(); renderFilmstrip(); updateBatchSummary();
+});
+
+document.getElementById('btnAutoSel').addEventListener('click', async () => {
+  if (!selSet.size) { alert('이미지를 먼저 선택해주세요.'); return; }
+  const btn = document.getElementById('btnAutoSel');
+  btn.disabled = true; btn.textContent = '감지 중…';
+  for (const idx of selSet) {
+    const rec = state.imgs[idx]; if (!rec) continue;
+    try { autoDetectCrop(rec); processRecord(rec); } catch(e) { console.warn(e); }
+  }
+  btn.disabled = false; btn.textContent = '🔍 선택 자동감지';
+  renderImgGrid(); updateBatchSummary();
+});
+
+document.getElementById('btnMeasureSel').addEventListener('click', async () => {
+  if (!selSet.size) { alert('이미지를 먼저 선택해주세요.'); return; }
+  const btn = document.getElementById('btnMeasureSel');
+  btn.disabled = true; btn.textContent = '측정 중…';
+  for (const idx of selSet) {
+    const rec = state.imgs[idx]; if (!rec) continue;
+    try {
+      if (!rec.procCanvas) processRecord(rec);
+      rec.measure = calcMeasure(rec); rec.status = 'measured';
+    } catch(e) { rec.status = 'error'; console.warn(e); }
+  }
+  btn.disabled = false; btn.textContent = '📐 선택 측정';
+  renderImgGrid(); updateBatchSummary();
+});
+
 document.getElementById('btnAutoAll').addEventListener('click', async () => {
   const btn=document.getElementById('btnAutoAll');
   btn.disabled=true; btn.textContent='처리 중…';
