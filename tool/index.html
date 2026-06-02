@@ -865,14 +865,19 @@ function mkRecord(file) {
 
 function extractName(fn) {
   const base = fn.replace(/\.[^.]+$/, '');
+  // 우선순위 1: _한글한글자_ 패턴 (언더바 두 개 사이 정확히 한 글자)
+  const m1 = base.match(/_([가-힣])_/);
+  if (m1) return m1[1];
+  // 우선순위 2: 언더바로 분리된 토큰 중 한글 한 글자
   const parts = base.split('_');
   for (const p of parts) {
     const s = p.trim();
-    if (/^[\uAC00-\uD7A3]$/.test(s)) return s;
+    if (/^[가-힣]$/.test(s)) return s;
   }
+  // 우선순위 3: 세 번째 토큰이 한글 1~2자
   if (parts.length >= 3) {
     const s = parts[2].trim();
-    if (/^[\uAC00-\uD7A3]{1,2}$/.test(s)) return s;
+    if (/^[가-힣]{1,2}$/.test(s)) return s;
   }
   return '';
 }
