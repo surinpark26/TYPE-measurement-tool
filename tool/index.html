@@ -561,10 +561,17 @@ input[type="range"] { accent-color:var(--text); width:76px; }
   <!-- Page 1: 이미지 선택 -->
   <div id="page1" class="page">
     <div class="p1-bar">
-      <span style="font-size:12px;color:var(--text-2)">이미지를 추가하면 자동으로 처리됩니다</span>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-2);user-select:none;">
+        <input type="checkbox" id="chkSelectAll" style="cursor:pointer;accent-color:var(--accent);">
+        전체 선택
+      </label>
+      <button class="btn btn--err btn--sm" id="btnDeleteSel" style="margin-left:4px;display:none;">🗑 선택 삭제</button>
+      <span id="selCountBadge" style="font-size:11px;color:var(--text-3);margin-left:4px;"></span>
       <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
         <button class="btn btn--orange btn--sm" id="btnAutoAll">🔍 전체 자동감지</button>
+        <button class="btn btn--orange btn--sm" id="btnAutoSel">🔍 선택 자동감지</button>
         <button class="btn btn--dark btn--sm" id="btnMeasureAll">📐 전체 측정</button>
+        <button class="btn btn--dark btn--sm" id="btnMeasureSel">📐 선택 측정</button>
         <button class="btn btn--ok btn--sm" id="btnDlBatch">📦 CSV</button>
         <button class="btn btn--ok btn--sm" id="btnDlBatchXLSX">📊 XLSX</button>
       </div>
