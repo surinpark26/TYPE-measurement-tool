@@ -2613,7 +2613,7 @@ window.addEventListener('resize', ()=>{ if(!document.getElementById('page2').cla
    CSV
 ══════════════════════════════════════════════════════════════ */
 const HDR = ['파일명','글자','모임꼴','받침여부','너비(mm)','높이(mm)','비례기준','비례값',
-  '균형점X(Gu)','균형점Y(Gu)','편차X(Gu)','편차Y(Gu)','균형축각도(°)','픽셀수','기준치수(mm)',
+  '균형점X(Gu)','균형점Y(Gu)','편차X(Gu)','편차Y(Gu)','균형축각도(°)','상단중심X(px)','상단중심Y(px)','하단중심X(px)','하단중심Y(px)','픽셀수','기준치수(mm)',
   '낱글자W','낱글자H','낱글자비율','낱글자W비례%','낱글자H비례%',
   '첫닿자W','첫닿자H','첫닿자비율','첫닿자W비례%','첫닿자H비례%',
   '받침닿자W','받침닿자H','받침닿자비율','받침닿자W비례%','받침닿자H비례%',
@@ -2626,7 +2626,10 @@ function toRow(m) {
   const c=l=>(m.comps||{})[l]||{}, h=l=>(m.hols||{})[l]||{};
   const g=l=>(m.gaps||{})[l]||{}, s=l=>(m.steps||{})[l]||{};
   return [m.filename,m.charName,MN[m.moiming],m.hasBatchim?'받침':'민글자',
-    m.charWmm,m.charHmm,m.propBasis,m.propRatio,m.cxGu,m.cyGu,m.devX,m.devY,m.balAngle,m.pixelCount,m.refDim??'',
+    m.charWmm,m.charHmm,m.propBasis,m.propRatio,m.cxGu,m.cyGu,m.devX,m.devY,m.balAngle,
+    m.topCx!=null?Math.round(m.topCx):'', m.topCy!=null?Math.round(m.topCy):'',
+    m.botCx!=null?Math.round(m.botCx):'', m.botCy!=null?Math.round(m.botCy):'',
+    m.pixelCount,m.refDim??'',
     c('낱글자').wMM??'',c('낱글자').hMM??'',c('낱글자').shapeRatio??'',c('낱글자').wPropPct??'',c('낱글자').hPropPct??'',
     c('첫닿자').wMM??'',c('첫닿자').hMM??'',c('첫닿자').shapeRatio??'',c('첫닿자').wPropPct??'',c('첫닿자').hPropPct??'',
     c('받침닿자').wMM??'',c('받침닿자').hMM??'',c('받침닿자').shapeRatio??'',c('받침닿자').wPropPct??'',c('받침닿자').hPropPct??'',
