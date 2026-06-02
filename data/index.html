@@ -63,7 +63,7 @@ input,select{font-family:inherit;}
 
 /* CONTENT */
 .content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
-.content__tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 14px;background:var(--surface);flex-shrink:0;}
+.content__tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 14px;background:var(--surface);flex-shrink:0;flex-wrap:wrap;}
 .tab-btn{padding:9px 14px;font-size:11px;font-weight:700;color:var(--text-3);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;}
 .tab-btn:hover{color:var(--text);}
 .tab-btn.is-active{color:var(--accent);border-bottom-color:var(--accent);}
@@ -973,9 +973,7 @@ function renderBalance(rows,body){
     </svg>
   </div>`;
 }
-</script>
-</body>
-</html>
+
 /* ═══════════════════════════════════════════════════════════
    통계 유틸
 ═══════════════════════════════════════════════════════════ */
@@ -1001,17 +999,6 @@ function statRow(label, arr, cls='') {
   </tr>`;
 }
 
-function cmpTableHeader(title, cols) {
-  return `<thead>
-    <tr>
-      <th class="th-group" rowspan="2" style="text-align:left;min-width:80px;">${title}</th>
-      ${cols.map(c=>`<th class="th-group" colspan="5">${c}</th>`).join('')}
-    </tr>
-    <tr>
-      ${cols.map(()=>`<th>N</th><th>평균</th><th>중간</th><th>최소</th><th>최대</th>`).join('')}
-    </tr>
-  </thead>`;
-}
 
 function multiStatRow(label, colArrs) {
   return `<tr>
@@ -1133,27 +1120,24 @@ function renderCmpBody(rows) {
 function makeColHeader(measureCols) {
   return `<thead>
     <tr>
-      <th style="text-align:left;min-width:100px;position:sticky;left:0;z-index:2;background:#ece9e3;">그룹</th>
-      <th style="min-width:32px;">N</th>
-      ${measureCols.map(c=>`<th colspan="4">${c.label}</th>`).join('')}
+      <th style="text-align:left;min-width:80px;position:sticky;left:0;z-index:2;background:#ece9e3;" rowspan="2">그룹</th>
+      <th style="min-width:28px;" rowspan="2">N</th>
+      ${measureCols.map(c=>`<th colspan="4" style="text-align:center;">${c.label}</th>`).join('')}
     </tr>
     <tr>
-      <th style="position:sticky;left:0;z-index:2;background:#ece9e3;"></th>
-      <th></th>
-      ${measureCols.map(()=>`<th>평균</th><th>중간</th><th>최소</th><th>최대</th>`).join('')}
+      ${measureCols.map(()=>`<th style="font-weight:400;color:var(--ok);">평균</th><th style="font-weight:400;color:var(--accent);">중간</th><th style="font-weight:400;color:#888;">최소</th><th style="font-weight:400;color:var(--err);">최대</th>`).join('')}
     </tr>
   </thead>`;
 }
 
 function makeDataRow(label, grpRows, measureCols) {
-  const s0 = stats(grpRows.map(r=>1)); // just for N
   const n = grpRows.length;
   return `<tr>
     <td class="td-label">${label}</td>
     <td class="td-n">${n}</td>
     ${measureCols.map(c=>{
       const s=stats(grpRows.map(r=>parseFloat(r[c.key])));
-      return `<td class="td-avg">${s.avg}</td><td class="td-med">${s.med}</td><td class="td-min">${s.min}</td><td class="td-max">${s.max}</td>`;
+      return `<td class="td-avg">${s.avg}</td><td class="td-med">${s.med}</td><td class="td-min" style="color:#888">${s.min}</td><td class="td-max">${s.max}</td>`;
     }).join('')}
   </tr>`;
 }
@@ -1260,14 +1244,7 @@ function renderGapStep(rows, body) {
       if(!aCols.length) continue;
       const cDefs = aCols.map(c=>({label:c.replace(def.label,'').replace('비율','비율').replace('비례%','비례%'),key:c}));
       html += `<table class="cmp-table" style="margin-bottom:6px;">
-        <thead><tr>
-          <th style="text-align:left;min-width:100px;position:sticky;left:0;z-index:2;background:#ece9e3;">${def.label}</th>
-          <th>N</th>
-          ${cDefs.map(c=>`<th colspan="4">${c.label}</th>`).join('')}
-        </tr><tr>
-          <th style="position:sticky;left:0;z-index:2;background:#ece9e3;"></th><th></th>
-          ${cDefs.map(()=>`<th>평균</th><th>중간</th><th>최소</th><th>최대</th>`).join('')}
-        </tr></thead><tbody>`;
+        ${makeColHeader(cDefs).replace(/>그룹</,`>${def.label}<`)}<tbody>`;
       html += makeDataRow('전체', mRows, cDefs);
       // 첫닿자별
       for (const cho of CHO_LIST) {
@@ -1322,7 +1299,7 @@ function renderBalProp(rows, body) {
       if(cRows.length) html += makeDataRow(`  ${cho}`, cRows, BAL_COLS);
     }
     // 홀자별
-    html += `<tr><td class="td-label" colspan="${BAL_COLS.length*4+2}" style="background:#f0efe9;font-size:10px;color:var(--text-3);">홀자별</td></tr>`;
+    html += `<tr><td class="td-label" colspan="${BAL_COLS.length*4+2}" style="background:#f0efe9;font-size:10px;color:var(--text-3);font-weight:700;letter-spacing:.5px;">홀자별</td></tr>`;
     for (const jung of JUNG_LIST) {
       const jRows = mRows.filter(r=>{const d=decomposeHangul((r[charKey]||'').trim());return d&&d.jung===jung;});
       if(jRows.length) html += makeDataRow(`  ${jung}`, jRows, BAL_COLS);
@@ -1333,3 +1310,7 @@ function renderBalProp(rows, body) {
   body.innerHTML = html;
 }
 
+
+</script>
+</body>
+</html>
