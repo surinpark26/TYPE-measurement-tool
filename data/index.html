@@ -114,6 +114,51 @@ input,select{font-family:inherit;}
 .modal__row{display:flex;gap:8px;}
 .modal__status{font-size:11px;min-height:16px;}
 .status--ok{color:var(--ok);}.status--err{color:var(--err);}.status--info{color:var(--accent);}
+
+/* ── 필터 패널 ── */
+.filter-panel {
+  background:var(--surface); border-bottom:1px solid var(--border);
+  display:flex; flex-direction:column; flex-shrink:0;
+}
+.filter-section {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:7px 14px; border-bottom:1px solid var(--border-lt);
+  flex-wrap:wrap;
+}
+.filter-section:last-child { border-bottom:none; }
+.filter-section__label {
+  font-size:10px; font-weight:800; color:var(--text-3);
+  text-transform:uppercase; letter-spacing:.3px;
+  min-width:44px; padding-top:3px; flex-shrink:0;
+}
+.filter-group { display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
+.filter-group__sep {
+  font-size:9px; color:var(--text-3); padding:0 3px; line-height:1.8;
+}
+.fbtn {
+  padding:2px 8px; font-size:11px; font-weight:700;
+  border:1.5px solid var(--border); border-radius:4px;
+  background:var(--bg); color:var(--text-2); cursor:pointer;
+  transition:all .1s; white-space:nowrap; line-height:1.5;
+  font-family: 'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+}
+.fbtn:hover { border-color:#aaa; background:#eeece6; }
+.fbtn.is-on { background:var(--accent); color:#fff; border-color:var(--accent); }
+/* 카테고리별 색상 */
+.fbtn--cho.is-on  { background:#7c3aed; border-color:#7c3aed; }
+.fbtn--jung.is-on { background:var(--ok); border-color:var(--ok); }
+.fbtn--jong.is-on { background:var(--orange); border-color:var(--orange); }
+.fbtn--moim.is-on { background:var(--accent); border-color:var(--accent); }
+.fbtn--batch.is-on{ background:var(--warn); border-color:var(--warn); }
+/* 전체 버튼 */
+.fbtn--all { opacity:.6; }
+.fbtn--all.is-on { opacity:1; background:#555; border-color:#555; color:#fff; }
+/* 선택 배지 */
+.filter-badge {
+  display:inline-flex; align-items:center; gap:3px;
+  background:var(--accent-bg); border:1px solid #bfdbfe;
+  border-radius:20px; padding:1px 7px; font-size:10px; font-weight:700; color:var(--accent);
+}
 </style>
 </head>
 <body>
@@ -133,34 +178,145 @@ input,select{font-family:inherit;}
   </div>
 </nav>
 
-<div class="toolbar">
-  <span class="toolbar__label">필터</span>
-  <select id="filterMoim" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#f7f5f0;">
-    <option value="">전체 모임꼴</option>
-    <option value="가로모임꼴">가로모임꼴</option>
-    <option value="세로모임꼴">세로모임꼴</option>
-    <option value="섞임모임꼴">섞임모임꼴</option>
-  </select>
-  <select id="filterBatch" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#f7f5f0;">
-    <option value="">받침 구분 없음</option>
-    <option value="민글자">민글자</option>
-    <option value="받침">받침글자</option>
-  </select>
-  <div class="toolbar__sep"></div>
-  <span class="toolbar__label">정렬</span>
-  <select id="sortCol" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#f7f5f0;">
-    <option value="글자">글자</option>
-    <option value="너비(mm)">너비</option>
-    <option value="높이(mm)">높이</option>
-    <option value="비례값">비례값</option>
-    <option value="균형점X(Gu)">균형 X</option>
-    <option value="균형점Y(Gu)">균형 Y</option>
-    <option value="편차X(Gu)">편차 X</option>
-    <option value="편차Y(Gu)">편차 Y</option>
-  </select>
-  <div class="toolbar__sep"></div>
-  <span id="rowCount" style="font-size:11px;color:var(--text-3);">— 행</span>
-</div>
+<!-- 필터 패널 -->
+<div class="filter-panel" id="filterPanel">
+
+  <!-- 섹션 1: 모임꼴 / 받침 -->
+  <div class="filter-section">
+    <span class="filter-section__label">모임꼴</span>
+    <div class="filter-group" id="fg-moim">
+      <button class="fbtn fbtn--moim" data-g="moim" data-v="가로모임꼴">가로모임꼴</button>
+      <button class="fbtn fbtn--moim" data-g="moim" data-v="세로모임꼴">세로모임꼴</button>
+      <button class="fbtn fbtn--moim" data-g="moim" data-v="섞임모임꼴">섞임모임꼴</button>
+    </div>
+    <div class="filter-group__sep">|</div>
+    <span class="filter-section__label" style="min-width:28px;">받침</span>
+    <div class="filter-group" id="fg-batch">
+      <button class="fbtn fbtn--batch" data-g="batch" data-v="민글자">민글자</button>
+      <button class="fbtn fbtn--batch" data-g="batch" data-v="받침">받침글자</button>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+      <span id="filterBadge" style="font-size:11px;color:var(--text-3);"></span>
+      <button class="btn btn--ghost btn--sm" id="btnResetFilter" style="font-size:10px;padding:2px 8px;">↺ 초기화</button>
+    </div>
+  </div>
+
+  <!-- 섹션 2: 첫닿자 / 홀자 / 받침닿자 -->
+  <div class="filter-section">
+    <span class="filter-section__label">첫닿자</span>
+    <div class="filter-group" id="fg-cho">
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㄱ">ㄱ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㄴ">ㄴ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㄷ">ㄷ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㄹ">ㄹ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅁ">ㅁ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅂ">ㅂ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅅ">ㅅ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅇ">ㅇ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅈ">ㅈ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅊ">ㅊ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅋ">ㅋ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅌ">ㅌ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅍ">ㅍ</button>
+      <button class="fbtn fbtn--cho" data-g="cho" data-v="ㅎ">ㅎ</button>
+    </div>
+  </div>
+  <div class="filter-section">
+    <span class="filter-section__label">홀자</span>
+    <div class="filter-group" id="fg-jung">
+      <span class="filter-group__sep">가로</span>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅏ">ㅏ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅑ">ㅑ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅓ">ㅓ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅕ">ㅕ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅣ">ㅣ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅐ">ㅐ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅒ">ㅒ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅔ">ㅔ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅖ">ㅖ</button>
+      <span class="filter-group__sep">세로</span>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅗ">ㅗ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅛ">ㅛ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅜ">ㅜ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅠ">ㅠ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅡ">ㅡ</button>
+      <span class="filter-group__sep">섞임</span>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅘ">ㅘ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅙ">ㅙ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅚ">ㅚ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅝ">ㅝ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅞ">ㅞ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅟ">ㅟ</button>
+      <button class="fbtn fbtn--jung" data-g="jung" data-v="ㅢ">ㅢ</button>
+    </div>
+  </div>
+  <div class="filter-section">
+    <span class="filter-section__label">받침닿자</span>
+    <div class="filter-group" id="fg-jong">
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="없음">없음</button>
+      <span class="filter-group__sep">단</span>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄱ">ㄱ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄴ">ㄴ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄷ">ㄷ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄹ">ㄹ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅁ">ㅁ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅂ">ㅂ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅅ">ㅅ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅇ">ㅇ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅈ">ㅈ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅊ">ㅊ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅋ">ㅋ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅌ">ㅌ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅍ">ㅍ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅎ">ㅎ</button>
+      <span class="filter-group__sep">겹</span>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄳ">ㄳ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄵ">ㄵ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄶ">ㄶ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄺ">ㄺ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄻ">ㄻ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄼ">ㄼ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄽ">ㄽ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄾ">ㄾ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㄿ">ㄿ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅀ">ㅀ</button>
+      <button class="fbtn fbtn--jong" data-g="jong" data-v="ㅄ">ㅄ</button>
+    </div>
+  </div>
+
+  <!-- 섹션 3: 정렬 -->
+  <div class="filter-section">
+    <span class="filter-section__label">정렬</span>
+    <div class="filter-group">
+      <select id="sortCol" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#f7f5f0;">
+        <option value="">기본순</option>
+        <optgroup label="균형">
+          <option value="균형점X(Gu)">균형점 X (Gu)</option>
+          <option value="균형점Y(Gu)">균형점 Y (Gu)</option>
+          <option value="편차X(Gu)">편차 X (Gu)</option>
+          <option value="편차Y(Gu)">편차 Y (Gu)</option>
+          <option value="균형축각도(°)">균형축 각도 (°)</option>
+        </optgroup>
+        <optgroup label="크기">
+          <option value="너비(mm)">너비 (mm)</option>
+          <option value="높이(mm)">높이 (mm)</option>
+          <option value="기준치수(mm)">기준치수 (mm)</option>
+        </optgroup>
+        <optgroup label="비례">
+          <option value="비례값">비례값</option>
+          <option value="낱글자W">낱글자 W</option>
+          <option value="낱글자H비례%">낱글자 H 비례%</option>
+          <option value="낱글자W비례%">낱글자 W 비례%</option>
+        </optgroup>
+        <optgroup label="글자">
+          <option value="글자">글자</option>
+          <option value="모임꼴">모임꼴</option>
+        </optgroup>
+      </select>
+      <span id="rowCount" style="font-size:11px;color:var(--text-3);margin-left:6px;">— 행</span>
+    </div>
+  </div>
+</div></div>
 
 <div class="main">
   <!-- 사이드바: 불러온 파일 목록 -->
@@ -290,35 +446,89 @@ function curRows(){
   return allFiles[curFileIdx].rows;
 }
 
+
+/* ── 한글 자모 분해 ── */
+const CHO  = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const JUNG = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+const JONG  = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+function decomposeHangul(ch) {
+  const code = ch && ch.charCodeAt(0);
+  if (!code || code < 0xAC00 || code > 0xD7A3) return null;
+  const offset = code - 0xAC00;
+  return {
+    cho:  CHO[Math.floor(offset / 28 / 21)],
+    jung: JUNG[Math.floor(offset / 28) % 21],
+    jong: JONG[offset % 28],
+  };
+}
+
+/* ── 필터 상태 — 다중선택 Set ── */
+const filterSets = { moim: new Set(), batch: new Set(), cho: new Set(), jung: new Set(), jong: new Set() };
+
+// 필터 패널 이벤트 위임
+document.getElementById('filterPanel').addEventListener('click', e => {
+  const btn = e.target.closest('.fbtn[data-g]'); if (!btn) return;
+  const g = btn.dataset.g, v = btn.dataset.v;
+  if (!filterSets[g]) return;
+  if (filterSets[g].has(v)) filterSets[g].delete(v);
+  else filterSets[g].add(v);
+  btn.classList.toggle('is-on', filterSets[g].has(v));
+  updateFilterBadge();
+  renderContent();
+});
+
+function updateFilterBadge() {
+  const total = Object.values(filterSets).reduce((s,st)=>s+st.size,0);
+  const badge = document.getElementById('filterBadge');
+  if (badge) badge.textContent = total > 0 ? total + '개 필터 적용 중' : '';
+}
+
+document.getElementById('btnResetFilter').addEventListener('click', () => {
+  Object.values(filterSets).forEach(s => s.clear());
+  document.querySelectorAll('.fbtn[data-g]').forEach(b => b.classList.remove('is-on'));
+  updateFilterBadge();
+  renderContent();
+});
+
 function filteredRows(){
   let rows=curRows();
-  const m=document.getElementById('filterMoim').value;
-  const b=document.getElementById('filterBatch').value;
-  // 실제 컬럼명 감지
+  const m    = filterSets.moim;
+  const b    = filterSets.batch;
+  const cho  = filterSets.cho;
+  const jung = filterSets.jung;
+  const jong = filterSets.jong;
   const keys=Object.keys(rows[0]||{});
   const moimKey=keys.find(k=>k==='모임꼴')||'모임꼴';
   const batKey=keys.find(k=>k==='받침여부')||'받침여부';
-  const propKey=keys.find(k=>k==='비례값')||'비례값';
   const charKey=keys.find(k=>k==='글자')||'글자';
-  const wKey=keys.find(k=>k==='낱글자너비(mm)'||k==='너비(mm)')||'너비(mm)';
-  const hKey=keys.find(k=>k==='낱글자높이(mm)'||k==='높이(mm)')||'높이(mm)';
-  const dxKey=keys.find(k=>k.includes('편차X'))||'편차X(Gu)';
-  const dyKey=keys.find(k=>k.includes('편차Y'))||'편차Y(Gu)';
-  const balKey=keys.find(k=>k.includes('균형축'))||'균형축각도(°)';
 
-  if(m) rows=rows.filter(r=>r[moimKey]===m);
-  if(b) rows=rows.filter(r=>{
+  // 모임꼴 — OR (선택된 것 중 하나라도 해당)
+  if(m.size) rows=rows.filter(r=>m.has(r[moimKey]));
+
+  // 받침 — OR
+  if(b.size) rows=rows.filter(r=>{
     const v=r[batKey]||'';
-    if(b==='민글자') return v==='민글자'||v==='';
-    if(b==='받침') return v==='받침'||v==='받침글자';
-    return true;
+    if(b.has('민글자')&&(v==='민글자'||v==='')) return true;
+    if(b.has('받침')&&(v==='받침'||v==='받침글자')) return true;
+    return false;
   });
-  const s=document.getElementById('sortCol').value;
-  const keyMap={'글자':charKey,'너비':wKey,'높이':hKey,'비례값':propKey,
-    '균형점X(Gu)':keys.find(k=>k.includes('균형점X'))||'균형점X(Gu)',
-    '균형점Y(Gu)':keys.find(k=>k.includes('균형점Y'))||'균형점Y(Gu)',
-    '편차X(Gu)':dxKey,'편차Y(Gu)':dyKey};
-  const sk=keyMap[s]||s;
+
+  // 첫닿자·홀자·받침닿자 — 각 그룹 내 OR, 그룹 간 AND
+  if(cho.size||jung.size||jong.size) {
+    rows = rows.filter(r => {
+      const ch=(r[charKey]||'').trim(); if(!ch) return false;
+      const d=decomposeHangul(ch); if(!d) return false;
+      if(cho.size  && !cho.has(d.cho))  return false;
+      if(jung.size && !jung.has(d.jung)) return false;
+      if(jong.size) {
+        const jv = d.jong===''?'없음':d.jong;
+        if(!jong.has(jv)) return false;
+      }
+      return true;
+    });
+  }
+
+  const sk = document.getElementById('sortCol').value;
   if(sk) rows=[...rows].sort((a,b2)=>{
     const av=parseFloat(a[sk]),bv=parseFloat(b2[sk]);
     if(!isNaN(av)&&!isNaN(bv)) return av-bv;
@@ -545,15 +755,13 @@ async function ghLoadFile(path,name){
       rows=parseXLSX(buf);
     }
     addFile(name,rows);
-    statusEl.textContent='✓ 로드 완료';
-    setTimeout(()=>statusEl.textContent='',2000);
   }catch(e){
     alert('파일 로드 실패: '+e.message);
   }
 }
 
 // ── 렌더링 ───────────────────────────────────────────────────
-['filterMoim','filterBatch','sortCol'].forEach(id=>document.getElementById(id).addEventListener('change',renderContent));
+document.getElementById('sortCol').addEventListener('change', renderContent);
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
