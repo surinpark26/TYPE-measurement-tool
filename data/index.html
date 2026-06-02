@@ -412,10 +412,10 @@ document.getElementById('localFileIn').addEventListener('change', e=>{
       const reader = new FileReader();
       reader.onload = ev => addFile(name, parseCSV(ev.target.result));
       reader.readAsText(f, 'UTF-8');
-      continue;
     } else if(name.endsWith('.xlsx')||name.endsWith('.xls')){
-      const buf=await f.arrayBuffer();
-      addFile(name,parseXLSX(new Uint8Array(buf)));
+      const reader = new FileReader();
+      reader.onload = ev => addFile(name, parseXLSX(new Uint8Array(ev.target.result)));
+      reader.readAsArrayBuffer(f);
     }
   }
   e.target.value='';
