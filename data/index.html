@@ -329,20 +329,36 @@ function filteredRows(){
 
 // ── 파일 로드 ────────────────────────────────────────────────
 function parseCSV(text){
-  const lines=text.split(/\r?\n/).filter(l=>l.trim());
-  if(!lines.length) return [];
-  // BOM 제거
-  const firstLine=lines[0].replace(/^\uFEFF/,'');
-  const headers=firstLine.split(',').map(h=>h.replace(/^"|"$/g,'').trim());
-  return lines.slice(1).map(line=>{
-    const vals=line.match(/("(?:[^"]|"")*"|[^,]*)/g)||[];
-    const row={};
-    headers.forEach((h,i)=>{
-      let v=(vals[i]||'').replace(/^"|"$/g,'').replace(/""/g,'"').trim();
-      row[h]=v;
-    });
+  // BOM(UTF-8) 제거
+  text = text.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return [];
+  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).map(line => {
+    // RFC 4180 파서 — 따옴표 안 쉼표 처리
+    const vals = [];
+    let i = 0;
+    while (i <= line.length) {
+      if (i === line.length) { vals.push(''); break; }
+      if (line[i] === '"') {
+        let val = '', j = i + 1;
+        while (j < line.length) {
+          if (line[j] === '"' && line[j+1] === '"') { val += '"'; j += 2; }
+          else if (line[j] === '"') { j++; break; }
+          else { val += line[j++]; }
+        }
+        vals.push(val);
+        i = (line[j] === ',') ? j + 1 : j;
+      } else {
+        const end = line.indexOf(',', i);
+        if (end === -1) { vals.push(line.slice(i)); break; }
+        else { vals.push(line.slice(i, end)); i = end + 1; }
+      }
+    }
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = (vals[idx] ?? '').trim(); });
     return row;
-  }).filter(r=>Object.values(r).some(v=>v));
+  }).filter(r => Object.values(r).some(v => v));
 }
 
 function parseXLSX(buffer){
@@ -389,12 +405,14 @@ document.getElementById('btnClearFiles').addEventListener('click',()=>{
 
 // ── 로컬 파일 불러오기 ───────────────────────────────────────
 document.getElementById('btnLoadLocal').addEventListener('click',()=>document.getElementById('localFileIn').click());
-document.getElementById('localFileIn').addEventListener('change',async e=>{
+document.getElementById('localFileIn').addEventListener('change', e=>{
   for(const f of e.target.files){
     const name=f.name;
     if(name.endsWith('.csv')){
-      const text=await f.text();
-      addFile(name,parseCSV(text));
+      const reader = new FileReader();
+      reader.onload = ev => addFile(name, parseCSV(ev.target.result));
+      reader.readAsText(f, 'UTF-8');
+      continue;
     } else if(name.endsWith('.xlsx')||name.endsWith('.xls')){
       const buf=await f.arrayBuffer();
       addFile(name,parseXLSX(new Uint8Array(buf)));
