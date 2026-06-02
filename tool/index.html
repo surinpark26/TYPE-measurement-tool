@@ -864,15 +864,22 @@ function mkRecord(file) {
 }
 
 function extractName(fn) {
-  const base = fn.replace(/\.[^.]+$/, '');
+  // 맥에서 파일명이 NFD(자모 분리)로 올 수 있으므로 NFC로 정규화
+  const normalized = fn.normalize('NFC');
+  const base = normalized.replace(/\.[^.]+$/, '');
+  // 언더바 두 개 사이 한글 한 글자 패턴 (_각_, _가_ 등)
+  const m1 = base.match(/_([가-힣])_/);
+  if (m1) return m1[1];
+  // 언더바로 분리된 토큰 중 한글 한 글자
   const parts = base.split('_');
   for (const p of parts) {
-    const s = p.trim();
-    if (/^[\uAC00-\uD7A3]$/.test(s)) return s;
+    const s = p.trim().normalize('NFC');
+    if (/^[가-힣]$/.test(s)) return s;
   }
+  // 세 번째 토큰이 한글 1~2자
   if (parts.length >= 3) {
-    const s = parts[2].trim();
-    if (/^[\uAC00-\uD7A3]{1,2}$/.test(s)) return s;
+    const s = parts[2].trim().normalize('NFC');
+    if (/^[가-힣]{1,2}$/.test(s)) return s;
   }
   return '';
 }
