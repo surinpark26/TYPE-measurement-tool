@@ -159,6 +159,54 @@ input,select{font-family:inherit;}
   background:var(--accent-bg); border:1px solid #bfdbfe;
   border-radius:20px; padding:1px 7px; font-size:10px; font-weight:700; color:var(--accent);
 }
+
+/* ── 비교 표 ── */
+.cmp-section { margin-bottom:18px; }
+.cmp-section__title {
+  font-size:12px; font-weight:800; color:var(--text);
+  padding:7px 10px; background:#f0efe9; border-radius:var(--radius) var(--radius) 0 0;
+  border:1px solid var(--border); border-bottom:none;
+  display:flex; align-items:center; gap:8px;
+}
+.cmp-section__title .badge {
+  font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px;
+  background:var(--accent); color:#fff;
+}
+.cmp-table { width:100%; border-collapse:collapse; font-size:11px;
+  border:1px solid var(--border); border-radius:0 0 var(--radius) var(--radius); overflow:hidden; }
+.cmp-table th {
+  background:#f7f5f0; padding:5px 8px; text-align:center;
+  font-weight:700; color:var(--text-3); border-bottom:2px solid var(--border);
+  border-right:1px solid var(--border-lt); white-space:nowrap;
+}
+.cmp-table th.th-group {
+  background:#ece9e3; font-size:10px; text-transform:uppercase; letter-spacing:.3px;
+}
+.cmp-table td {
+  padding:4px 8px; border-bottom:1px solid var(--border-lt);
+  border-right:1px solid var(--border-lt); text-align:right; white-space:nowrap;
+}
+.cmp-table td.td-label {
+  text-align:left; font-weight:700; color:var(--text);
+  background:#fafaf7; position:sticky; left:0; z-index:1;
+  border-right:2px solid var(--border);
+}
+.cmp-table td.td-n { color:var(--text-3); font-size:10px; }
+.cmp-table td.td-avg { font-weight:700; color:var(--purple); }
+.cmp-table td.td-med { color:var(--accent); }
+.cmp-table td.td-min { color:var(--ok); }
+.cmp-table td.td-max { color:var(--err); }
+.cmp-table tr:hover td { background:var(--accent-bg); }
+.cmp-table tr:hover td.td-label { background:#e8f0fe; }
+.cmp-wrap { overflow-x:auto; }
+.cmp-tabs { display:flex; gap:2px; margin-bottom:12px; flex-wrap:wrap; }
+.cmp-tab {
+  padding:4px 12px; font-size:11px; font-weight:700;
+  border:1px solid var(--border); border-radius:20px;
+  background:var(--bg); color:var(--text-3); cursor:pointer;
+}
+.cmp-tab:hover { background:var(--border-lt); color:var(--text); }
+.cmp-tab.is-active { background:var(--accent); color:#fff; border-color:var(--accent); }
 </style>
 </head>
 <body>
@@ -350,6 +398,9 @@ input,select{font-family:inherit;}
       <button class="tab-btn is-active" data-tab="table">📋 데이터 표</button>
       <button class="tab-btn" data-tab="chart">📊 비례 차트</button>
       <button class="tab-btn" data-tab="balance">⚖ 균형 분포</button>
+      <button class="tab-btn" data-tab="compare">📐 낱자 비교</button>
+      <button class="tab-btn" data-tab="gap">↔ 간격·단차 비교</button>
+      <button class="tab-btn" data-tab="balprop">⚖ 균형 비교</button>
     </div>
     <div class="content__body" id="contentBody">
       <div class="empty">
@@ -783,6 +834,9 @@ function renderContent(){
   if(curTab==='table') renderTable(rows,body);
   else if(curTab==='chart') renderChart(rows,body);
   else if(curTab==='balance') renderBalance(rows,body);
+  else if(curTab==='compare') renderCompare(rows,body);
+  else if(curTab==='gap') renderGapStep(rows,body);
+  else if(curTab==='balprop') renderBalProp(rows,body);
 }
 
 function renderTable(rows,body){
@@ -922,3 +976,360 @@ function renderBalance(rows,body){
 </script>
 </body>
 </html>
+/* ═══════════════════════════════════════════════════════════
+   통계 유틸
+═══════════════════════════════════════════════════════════ */
+function stats(arr) {
+  const a = arr.map(Number).filter(v => !isNaN(v) && v !== 0);
+  if (!a.length) return { n:0, avg:'—', med:'—', min:'—', max:'—' };
+  a.sort((x,y) => x-y);
+  const avg = a.reduce((s,v)=>s+v,0)/a.length;
+  const med = a.length%2===0 ? (a[a.length/2-1]+a[a.length/2])/2 : a[Math.floor(a.length/2)];
+  return { n:a.length, avg:r2(avg), med:r2(med), min:r2(a[0]), max:r2(a[a.length-1]) };
+}
+function r2(n){ return Math.round(n*100)/100; }
+
+function statRow(label, arr, cls='') {
+  const s = stats(arr);
+  return `<tr>
+    <td class="td-label">${label}</td>
+    <td class="td-n">${s.n}</td>
+    <td class="td-avg">${s.avg}</td>
+    <td class="td-med">${s.med}</td>
+    <td class="td-min">${s.min}</td>
+    <td class="td-max">${s.max}</td>
+  </tr>`;
+}
+
+function cmpTableHeader(title, cols) {
+  return `<thead>
+    <tr>
+      <th class="th-group" rowspan="2" style="text-align:left;min-width:80px;">${title}</th>
+      ${cols.map(c=>`<th class="th-group" colspan="5">${c}</th>`).join('')}
+    </tr>
+    <tr>
+      ${cols.map(()=>`<th>N</th><th>평균</th><th>중간</th><th>최소</th><th>최대</th>`).join('')}
+    </tr>
+  </thead>`;
+}
+
+function multiStatRow(label, colArrs) {
+  return `<tr>
+    <td class="td-label">${label}</td>
+    ${colArrs.map(arr => {
+      const s = stats(arr);
+      return `<td class="td-n">${s.n}</td><td class="td-avg">${s.avg}</td><td class="td-med">${s.med}</td><td class="td-min">${s.min}</td><td class="td-max">${s.max}</td>`;
+    }).join('')}
+  </tr>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   낱자 비교 탭
+═══════════════════════════════════════════════════════════ */
+const MOIMS = ['가로모임꼴','세로모임꼴','섞임모임꼴'];
+const MOIM_SHORT = {'가로모임꼴':'가로','세로모임꼴':'세로','섞임모임꼴':'섞임'};
+const CHO_LIST  = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const JUNG_LIST = ['ㅏ','ㅑ','ㅓ','ㅕ','ㅣ','ㅐ','ㅒ','ㅔ','ㅖ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅘ','ㅙ','ㅚ','ㅝ','ㅞ','ㅟ','ㅢ'];
+const JONG_LIST = ['없음','ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ','ㄳ','ㄵ','ㄶ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅄ'];
+
+let cmpSubTab = 'glyph'; // glyph | cho | jung | jong
+
+function getCols(rows) {
+  return rows.length ? Object.keys(rows[0]) : [];
+}
+function getKey(cols, ...candidates) {
+  for (const c of candidates) if (cols.includes(c)) return c;
+  return null;
+}
+function colVals(rows, key) {
+  if (!key) return [];
+  return rows.map(r=>parseFloat(r[key])).filter(v=>!isNaN(v)&&v!==0);
+}
+
+function groupBy(rows, keyFn) {
+  const map = new Map();
+  for (const r of rows) {
+    const k = keyFn(r);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(r);
+  }
+  return map;
+}
+
+function renderCompare(rows, body) {
+  // 탭 UI
+  const tabs = [
+    { v:'glyph', label:'낱글자 비례' },
+    { v:'cho',   label:'첫닿자 비례' },
+    { v:'jung',  label:'홀자 비례'   },
+    { v:'jong',  label:'받침닿자 비례'},
+  ];
+  const tabHtml = `<div class="cmp-tabs">${tabs.map(t=>
+    `<button class="cmp-tab${cmpSubTab===t.v?' is-active':''}" onclick="setCmpTab('${t.v}')">${t.label}</button>`
+  ).join('')}</div>`;
+
+  body.innerHTML = tabHtml + '<div id="cmpBody"></div>';
+  renderCmpBody(rows);
+}
+
+function setCmpTab(v) {
+  cmpSubTab = v;
+  document.querySelectorAll('.cmp-tab').forEach(b => b.classList.toggle('is-active', b.textContent.trim() && b.getAttribute('onclick')?.includes(`'${v}'`)));
+  const allRows = filteredRows();
+  renderCmpBody(allRows);
+}
+
+function renderCmpBody(rows) {
+  const body = document.getElementById('cmpBody'); if (!body) return;
+  const cols = getCols(rows);
+  if (!cols.length) { body.innerHTML='<div class="empty"><div class="empty__icon">📊</div><div class="empty__text">데이터 없음</div></div>'; return; }
+
+  const charKey  = getKey(cols,'글자');
+  const moimKey  = getKey(cols,'모임꼴');
+  const batKey   = getKey(cols,'받침여부');
+
+  // 측정 컬럼 정의
+  const GLYPH_COLS = [
+    {label:'너비(mm)',   key:getKey(cols,'낱글자너비(mm)','너비(mm)')},
+    {label:'높이(mm)',   key:getKey(cols,'낱글자높이(mm)','높이(mm)')},
+    {label:'비례값',     key:getKey(cols,'비례값')},
+    {label:'낱글자W',   key:getKey(cols,'낱글자W')},
+    {label:'낱글자H%',  key:getKey(cols,'낱글자H비례%')},
+    {label:'낱글자W%',  key:getKey(cols,'낱글자W비례%')},
+  ].filter(c=>c.key);
+
+  const CHO_COLS = [
+    {label:'첫닿자W(mm)', key:getKey(cols,'첫닿자W')},
+    {label:'첫닿자H(mm)', key:getKey(cols,'첫닿자H')},
+    {label:'첫닿자비율',  key:getKey(cols,'첫닿자비율')},
+    {label:'첫닿자W%',   key:getKey(cols,'첫닿자W비례%')},
+    {label:'첫닿자H%',   key:getKey(cols,'첫닿자H비례%')},
+  ].filter(c=>c.key);
+
+  const JONG_COLS = [
+    {label:'받침닿자W(mm)', key:getKey(cols,'받침닿자W')},
+    {label:'받침닿자H(mm)', key:getKey(cols,'받침닿자H')},
+    {label:'받침닿자비율',  key:getKey(cols,'받침닿자비율')},
+    {label:'받침닿자W%',   key:getKey(cols,'받침닿자W비례%')},
+    {label:'받침닿자H%',   key:getKey(cols,'받침닿자H비례%')},
+  ].filter(c=>c.key);
+
+  // 홀자 컬럼은 모임꼴 라벨로
+  const JUNG_COLS_ALL = [
+    {label:'가로모임꼴W',  key:getKey(cols,'가로모임꼴W')},
+    {label:'가로모임꼴H',  key:getKey(cols,'가로모임꼴H')},
+    {label:'세로모임꼴W',  key:getKey(cols,'세로모임꼴W')},
+    {label:'세로모임꼴H',  key:getKey(cols,'세로모임꼴H')},
+    {label:'가로획W',      key:getKey(cols,'가로획W')},
+    {label:'세로기둥W',    key:getKey(cols,'세로기둥W')},
+  ].filter(c=>c.key);
+
+  if (cmpSubTab==='glyph') renderCmpGlyph(rows,body,moimKey,batKey,charKey,GLYPH_COLS);
+  else if (cmpSubTab==='cho') renderCmpComp(rows,body,moimKey,batKey,charKey,CHO_COLS,'첫닿자','cho');
+  else if (cmpSubTab==='jung') renderCmpComp(rows,body,moimKey,batKey,charKey,JUNG_COLS_ALL,'홀자','jung');
+  else if (cmpSubTab==='jong') renderCmpComp(rows,body,moimKey,batKey,charKey,JONG_COLS,'받침닿자','jong');
+}
+
+function makeColHeader(measureCols) {
+  return `<thead>
+    <tr>
+      <th style="text-align:left;min-width:100px;position:sticky;left:0;z-index:2;background:#ece9e3;">그룹</th>
+      <th style="min-width:32px;">N</th>
+      ${measureCols.map(c=>`<th colspan="4">${c.label}</th>`).join('')}
+    </tr>
+    <tr>
+      <th style="position:sticky;left:0;z-index:2;background:#ece9e3;"></th>
+      <th></th>
+      ${measureCols.map(()=>`<th>평균</th><th>중간</th><th>최소</th><th>최대</th>`).join('')}
+    </tr>
+  </thead>`;
+}
+
+function makeDataRow(label, grpRows, measureCols) {
+  const s0 = stats(grpRows.map(r=>1)); // just for N
+  const n = grpRows.length;
+  return `<tr>
+    <td class="td-label">${label}</td>
+    <td class="td-n">${n}</td>
+    ${measureCols.map(c=>{
+      const s=stats(grpRows.map(r=>parseFloat(r[c.key])));
+      return `<td class="td-avg">${s.avg}</td><td class="td-med">${s.med}</td><td class="td-min">${s.min}</td><td class="td-max">${s.max}</td>`;
+    }).join('')}
+  </tr>`;
+}
+
+function renderCmpGlyph(rows,body,moimKey,batKey,charKey,cols) {
+  if(!cols.length){body.innerHTML='<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__text">낱글자 관련 컬럼을 찾을 수 없습니다</div></div>';return;}
+  let html='<div class="cmp-wrap">';
+  for (const moim of MOIMS) {
+    const mRows = rows.filter(r=>r[moimKey]===moim);
+    if(!mRows.length) continue;
+    const minRows = mRows.filter(r=>!r[batKey]||r[batKey]==='민글자'||r[batKey]==='');
+    const batRows = mRows.filter(r=>r[batKey]==='받침'||r[batKey]==='받침글자');
+    html += `<div class="cmp-section">
+      <div class="cmp-section__title">${moim} <span class="badge">${mRows.length}행</span></div>
+      <table class="cmp-table">${makeColHeader(cols)}<tbody>`;
+    html += makeDataRow(`전체`, mRows, cols);
+    if(minRows.length) html += makeDataRow(`└ 민글자`, minRows, cols);
+    if(batRows.length) html += makeDataRow(`└ 받침글자`, batRows, cols);
+    // 첫닿자별
+    for (const cho of CHO_LIST) {
+      const cRows = mRows.filter(r=>{const d=decomposeHangul((r[charKey]||'').trim());return d&&d.cho===cho;});
+      if(cRows.length) html += makeDataRow(`  ㅣ ${cho}`, cRows, cols);
+    }
+    html += `</tbody></table></div>`;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+function renderCmpComp(rows,body,moimKey,batKey,charKey,cols,title,type) {
+  if(!cols.length){body.innerHTML=`<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__text">${title} 관련 컬럼을 찾을 수 없습니다</div></div>`;return;}
+  let html='<div class="cmp-wrap">';
+  for (const moim of MOIMS) {
+    const mRows = rows.filter(r=>r[moimKey]===moim);
+    if(!mRows.length) continue;
+    html += `<div class="cmp-section">
+      <div class="cmp-section__title">${moim} — ${title} <span class="badge">${mRows.length}행</span></div>
+      <table class="cmp-table">${makeColHeader(cols)}<tbody>`;
+    html += makeDataRow('전체', mRows, cols);
+    const LIST = type==='cho'?CHO_LIST:type==='jung'?JUNG_LIST:JONG_LIST;
+    for (const jamo of LIST) {
+      const jRows = mRows.filter(r=>{
+        const d=decomposeHangul((r[charKey]||'').trim()); if(!d) return false;
+        if(type==='cho')  return d.cho===jamo;
+        if(type==='jung') return d.jung===jamo;
+        if(type==='jong') return jamo==='없음'?d.jong==='':d.jong===jamo;
+        return false;
+      });
+      if(jRows.length) html += makeDataRow(`  ${jamo}`, jRows, cols);
+    }
+    html += `</tbody></table></div>`;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   간격·단차 비교 탭
+═══════════════════════════════════════════════════════════ */
+const GAP_DEFS = {
+  '가로모임꼴': [
+    {label:'수평간격', cols:['수평간격W','수평간격H','수평간격비율','수평간격W비례%','수평간격H비례%']},
+    {label:'수직간격', cols:['수직간격W','수직간격H','수직간격비율','수직간격W비례%','수직간격H비례%']},
+    {label:'상단단차', cols:['상단단차W','상단단차H','상단단차비율','상단단차W비례%','상단단차H비례%']},
+    {label:'하단단차', cols:['하단단차W','하단단차H','하단단차비율','하단단차W비례%','하단단차H비례%']},
+  ],
+  '세로모임꼴': [
+    {label:'상단간격', cols:['상단간격W','상단간격H','상단간격비율','상단간격W비례%','상단간격H비례%']},
+    {label:'하단간격', cols:['하단간격W','하단간격H','하단간격비율','하단간격W비례%','하단간격H비례%']},
+    {label:'좌측단차', cols:['좌측단차W','좌측단차H','좌측단차비율','좌측단차W비례%','좌측단차H비례%']},
+    {label:'우측단차', cols:['우측단차W','우측단차H','우측단차비율','우측단차W비례%','우측단차H비례%']},
+  ],
+  '섞임모임꼴': [
+    {label:'상단간격', cols:['상단간격W','상단간격H','상단간격비율','상단간격W비례%','상단간격H비례%']},
+    {label:'하단간격', cols:['하단간격W','하단간격H','하단간격비율','하단간격W비례%','하단간격H비례%']},
+    {label:'수평간격', cols:['수평간격W','수평간격H','수평간격비율','수평간격W비례%','수평간격H비례%']},
+    {label:'수직간격', cols:['수직간격W','수직간격H','수직간격비율','수직간격W비례%','수직간격H비례%']},
+    {label:'좌측단차', cols:['좌측단차W','좌측단차H','좌측단차비율','좌측단차W비례%','좌측단차H비례%']},
+    {label:'우측단차', cols:['우측단차W','우측단차H','우측단차비율','우측단차W비례%','우측단차H비례%']},
+    {label:'상단단차', cols:['상단단차W','상단단차H','상단단차비율','상단단차W비례%','상단단차H비례%']},
+    {label:'하단단차', cols:['하단단차W','하단단차H','하단단차비율','하단단차W비례%','하단단차H비례%']},
+  ],
+};
+
+function renderGapStep(rows, body) {
+  const cols = getCols(rows);
+  const charKey = getKey(cols,'글자');
+  const moimKey = getKey(cols,'모임꼴');
+  let html = '<div class="cmp-wrap">';
+
+  for (const moim of MOIMS) {
+    const mRows = rows.filter(r=>r[moimKey]===moim);
+    if(!mRows.length) continue;
+    const defs = GAP_DEFS[moim]||[];
+    // 측정된 컬럼만
+    const activeDefs = defs.filter(d=>d.cols.some(c=>cols.includes(c)));
+    if(!activeDefs.length) continue;
+
+    html += `<div class="cmp-section">
+      <div class="cmp-section__title">${moim} — 간격·단차 <span class="badge">${mRows.length}행</span></div>`;
+
+    for (const def of activeDefs) {
+      const aCols = def.cols.filter(c=>cols.includes(c));
+      if(!aCols.length) continue;
+      const cDefs = aCols.map(c=>({label:c.replace(def.label,'').replace('비율','비율').replace('비례%','비례%'),key:c}));
+      html += `<table class="cmp-table" style="margin-bottom:6px;">
+        <thead><tr>
+          <th style="text-align:left;min-width:100px;position:sticky;left:0;z-index:2;background:#ece9e3;">${def.label}</th>
+          <th>N</th>
+          ${cDefs.map(c=>`<th colspan="4">${c.label}</th>`).join('')}
+        </tr><tr>
+          <th style="position:sticky;left:0;z-index:2;background:#ece9e3;"></th><th></th>
+          ${cDefs.map(()=>`<th>평균</th><th>중간</th><th>최소</th><th>최대</th>`).join('')}
+        </tr></thead><tbody>`;
+      html += makeDataRow('전체', mRows, cDefs);
+      // 첫닿자별
+      for (const cho of CHO_LIST) {
+        const cRows = mRows.filter(r=>{const d=decomposeHangul((r[charKey]||'').trim());return d&&d.cho===cho;});
+        if(cRows.length) html += makeDataRow(cho, cRows, cDefs);
+      }
+      html += `</tbody></table>`;
+    }
+    html += `</div>`;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   균형 비교 탭
+═══════════════════════════════════════════════════════════ */
+function renderBalProp(rows, body) {
+  const cols = getCols(rows);
+  const charKey = getKey(cols,'글자');
+  const moimKey = getKey(cols,'모임꼴');
+  const batKey  = getKey(cols,'받침여부');
+
+  const BAL_COLS = [
+    {label:'균형점X(Gu)', key:getKey(cols,'균형점X(Gu)')},
+    {label:'균형점Y(Gu)', key:getKey(cols,'균형점Y(Gu)')},
+    {label:'편차X(Gu)',   key:getKey(cols,'편차X(Gu)')},
+    {label:'편차Y(Gu)',   key:getKey(cols,'편차Y(Gu)')},
+    {label:'균형축각도(°)',key:getKey(cols,'균형축각도(°)')},
+  ].filter(c=>c.key);
+
+  if(!BAL_COLS.length){
+    body.innerHTML='<div class="empty"><div class="empty__icon">⚠️</div><div class="empty__text">균형 관련 컬럼을 찾을 수 없습니다</div></div>';
+    return;
+  }
+  let html='<div class="cmp-wrap">';
+  for (const moim of MOIMS) {
+    const mRows = rows.filter(r=>r[moimKey]===moim);
+    if(!mRows.length) continue;
+    const minRows = mRows.filter(r=>!r[batKey]||r[batKey]==='민글자'||r[batKey]==='');
+    const batRows = mRows.filter(r=>r[batKey]==='받침'||r[batKey]==='받침글자');
+
+    html += `<div class="cmp-section">
+      <div class="cmp-section__title">${moim} — 균형점 분포 <span class="badge">${mRows.length}행</span></div>
+      <table class="cmp-table">${makeColHeader(BAL_COLS)}<tbody>`;
+    html += makeDataRow('전체', mRows, BAL_COLS);
+    if(minRows.length) html += makeDataRow('└ 민글자', minRows, BAL_COLS);
+    if(batRows.length) html += makeDataRow('└ 받침글자', batRows, BAL_COLS);
+    // 첫닿자별
+    for (const cho of CHO_LIST) {
+      const cRows = mRows.filter(r=>{const d=decomposeHangul((r[charKey]||'').trim());return d&&d.cho===cho;});
+      if(cRows.length) html += makeDataRow(`  ${cho}`, cRows, BAL_COLS);
+    }
+    // 홀자별
+    html += `<tr><td class="td-label" colspan="${BAL_COLS.length*4+2}" style="background:#f0efe9;font-size:10px;color:var(--text-3);">홀자별</td></tr>`;
+    for (const jung of JUNG_LIST) {
+      const jRows = mRows.filter(r=>{const d=decomposeHangul((r[charKey]||'').trim());return d&&d.jung===jung;});
+      if(jRows.length) html += makeDataRow(`  ${jung}`, jRows, BAL_COLS);
+    }
+    html += `</tbody></table></div>`;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+}
+
